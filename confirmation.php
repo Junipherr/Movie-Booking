@@ -9,6 +9,12 @@ $error = '';
 if (isset($_GET['booking_id'])) {
     $booking_id = (int)$_GET['booking_id'];
     $user_id = $_SESSION['user_id'];
+// <script>
+//   // Clear booking cache on confirmation page load
+//   sessionStorage.removeItem('selectedSeats');
+//   sessionStorage.removeItem('selectedShow');
+//   console.log('Booking cache cleared');
+// </script>
     
     $stmt = $conn->prepare("SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.id = ? AND b.user_id = ?");
     $stmt->bind_param("ii", $booking_id, $user_id);
@@ -39,7 +45,7 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Booking Confirmed - Movie Booking</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
+<script>
         tailwind.config = {
             theme: {
                 extend: {
@@ -49,6 +55,12 @@ $conn->close();
                 }
             }
         }
+    </script>
+    <!-- Clear booking cache after successful confirmation -->
+    <script>
+      sessionStorage.removeItem('selectedSeats');
+      sessionStorage.removeItem('selectedShow');
+      console.log('Booking cache cleared on confirmation');
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -155,7 +167,11 @@ $conn->close();
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-medium text-gray-700">Seats</span>
-                        <span class="font-bold text-gray-900"><?php echo htmlspecialchars($booking['seats']); ?></span>
+                        <?php 
+                        $seats_list = trim($booking['seats'] ?? '');
+                        $seats_count = $seats_list ? count(array_filter(explode(',', $seats_list))) : 0;
+                        ?>
+                        <span class="font-bold text-gray-900"><?php echo htmlspecialchars($seats_list) ?: 'None'; ?> (<?php echo $seats_count; ?> seats)</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm font-medium text-gray-700">Price</span>

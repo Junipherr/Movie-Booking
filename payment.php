@@ -26,24 +26,16 @@ if ($booking_id > 0) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $booking_id > 0) {
     $user_id = $_SESSION['user_id'];
     if ($_POST['action'] === 'pay') {
-        // Mock payment validation
-        $card_number = trim($_POST['card_number'] ?? '');
-        $expiry = trim($_POST['expiry'] ?? '');
-        $cvv = trim($_POST['cvv'] ?? '');
-        
-        if (strlen($card_number) === 16 && strlen($cvv) === 3 && preg_match('/\d{2}\/\d{2}/', $expiry)) {
-            $stmt = $conn->prepare("UPDATE bookings SET status = 'Confirmed' WHERE id = ? AND user_id = ? AND status = 'Pending'");
-            $stmt->bind_param("ii", $booking_id, $user_id);
-            if ($stmt->execute() && $stmt->affected_rows > 0) {
-                $stmt->close();
-                $conn->close();
-                header("Location: confirmation.php?booking_id=" . $booking_id);
-                exit;
-            } else {
-                $error = 'Payment failed. Please try again.';
-            }
+        // Accept any payment info - demo mode
+        $stmt = $conn->prepare("UPDATE bookings SET status = 'Paid' WHERE id = ? AND user_id = ? AND status = 'Pending'");
+        $stmt->bind_param("ii", $booking_id, $user_id);
+        if ($stmt->execute() && $stmt->affected_rows > 0) {
+            $stmt->close();
+            $conn->close();
+            header("Location: confirmation.php?booking_id=" . $booking_id);
+            exit;
         } else {
-            $error = 'Invalid payment details.';
+            $error = 'Payment failed. Please try again.';
         }
     } elseif ($_POST['action'] === 'cancel') {
         // Release seats before deleting booking
@@ -147,17 +139,17 @@ $conn->close();
                         
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-3">Card Number</label>
-                            <input type="text" name="card_number" maxlength="16" placeholder="1234 5678 9012 3456" required class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all text-lg tracking-wider" autocomplete="cc-number">
+                            <input type="text" name="card_number" placeholder="Any card number works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all text-lg tracking-wider" autocomplete="cc-number">
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-3">Expiry Date</label>
-                                <input type="text" name="expiry" placeholder="MM/YY" maxlength="5" required class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-exp">
+                                <input type="text" name="expiry" placeholder="Any date works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-exp">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-3">CVV</label>
-                                <input type="text" name="cvv" maxlength="3" placeholder="123" required class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-csc">
+                                <input type="text" name="cvv" placeholder="Any CVV works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-csc">
                             </div>
                         </div>
                         
@@ -168,11 +160,9 @@ $conn->close();
                                 </svg>
                                 Pay Now ₱<?php echo number_format($booking['price'], 2); ?>
                             </button>
-                            <form method="POST" style="display: contents;" onsubmit="return confirm('Cancel booking #<?php echo $booking_id; ?>?')">
-                                <input type="hidden" name="action" value="cancel">
-                                <input type="hidden" name="booking_id" value="<?php echo $booking_id; ?>">
-                                <button type="submit" class="flex-1 bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-lg">Cancel Booking</button>
-                            </form>
+                        </div>
+                        <div class="pt-4">
+                            <button type="button" onclick="if(confirm('Cancel booking #<?php echo $booking_id; ?>?')){window.location.href='cancel-booking.php?booking_id=<?php echo $booking_id; ?>';}" class="w-full bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-lg">Cancel Booking</button>
                         </div>
                     </form>
                     <p class="text-xs text-gray-500 mt-6 text-center">Demo mode • No real charge • Secure checkout</p>

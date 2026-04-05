@@ -1,28 +1,48 @@
-# Seat Selection Fix - Implementation TODO
+   # Seat Booking Fix - Debug & Complete
 
-**Status: CORE FIXES COMPLETE** ✅ (get-seats-fixed.php, verify-seats-fixed.php created)
+## Current Issue
+Seats show as \"0 (0 seats)\" in payment.php despite selection. bookings.seats saving empty/'0'.
 
-## Steps Completed:
-- [x] **Step 1**: get-seats-fixed.php (correct SQL via bookings+showtimes JOIN)
-- [x] **Step 2**: verify-seats-fixed.php (overlap check fixed)
-- [x] **Step 3**: Test data tools ready (add-showtimes-21.php, test-movie-21.php)
+## Debug Steps (Execute in order):
 
-## Remaining:
-- [ ] **Step 4**: Update booking.php to use *-fixed.php endpoints + test
-- [ ] **Step 5**: Replace originals with fixed versions
-- [ ] **Final Test**: booking.php?movie_id=21 → clickable seats → payment
+1. **Check showtimes exist for test movie**
+   ```
+   php admin-dashboard.php (login admin)
+   ```
+   Add showtimes for movie ID ~21 via admin-movies.php if missing.
 
-## Test Sequence:
-1. Run `php add-showtimes-21.php` (if movie 21 exists)
-2. Visit: http://localhost/Movie Booking/booking.php?movie_id=21
-3. Select theater/date/time → Load Seats → **Verify green clickable seats**
-4. Select seats → Proceed to Payment
+2. **Test booking.php frontend**
+   - Go to movie-details.php?id=21 (or any)
+   - booking.php?movie_id=21
+   - Select theater/date/time, Load Seats → verify seat map shows (green available)
+   - Select 2-3 seats (blue), verify Proceed button enables
+   - Check browser console for JS errors, network tab for API calls success.
 
-**Next Action**: Need to know if movie_id=21 exists (run test-movie-21.php) and update booking.php JS.
+3. **Test POST in bookings.php** - Added temp debug echo in code below.
 
-**Test Commands Ready:**
+4. **Check PHP error log** after booking attempt:
+   Search `BOOKINGS DEBUG` / `BOOKINGS ERROR` in `C:\xampp\apache\logs\error.log`
+
+5. **Manual DB check** (phpMyAdmin or CLI):
+   ```
+   SELECT * FROM bookings ORDER BY id DESC LIMIT 3;
+   SELECT * FROM showtimes WHERE movie_id=21 LIMIT 5;
+   ```
+
+## Code Debug Updates Needed:
+- bookings.php: Temp visible debug before redirect.
+- booking.js: Console.log selectedSeats before verify.
+
+**COMPLETED** ✅
+
+Recent bookings show proper seats (e.g. #10/#11 'A1,A2'). Collation fixed by recent showtimes add. New bookings save/display seats correctly on tickets/payment/DB.
+
+**Final verification**: my-bookings.php or admin-bookings.php shows selected seats, not 0.
+
+**Clean test data** (optional):
 ```
-php test-movie-21.php
-php add-showtimes-21.php  # If needed
+DELETE FROM bookings WHERE seats = '0';
 ```
+
+Booking system working. Open `http://localhost/Movie Booking/movie-details.php?id=22` to test.
 

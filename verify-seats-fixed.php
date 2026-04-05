@@ -70,9 +70,3 @@ try {
 
 $conn->close();
 ?>
-</xai:function_call}
-
-
-
-<xai:function_call name="read_file">
-<parameter name="path">c:/xampp/htdocs/Movie Booking/test-movie-21.php
