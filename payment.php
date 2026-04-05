@@ -20,105 +20,140 @@ if ($booking_id > 0) {
     if (!$booking) {
         $error = 'Booking not found, expired, or already processed.';
     }
+} elseif (isset($_SESSION['pending_booking'])) {
+    $pending = $_SESSION['pending_booking'];
+    $stmt = $conn->prepare("SELECT title FROM movies WHERE id = ?");
+    $stmt->bind_param("i", $pending['movie_id']);
+    $stmt->execute();
+    $movie = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    
+    if ($movie) {
+        $booking = [
+            'id' => 0,
+            'movie_id' => $pending['movie_id'],
+            'movie_title' => $movie['title'],
+            'date' => $pending['date'],
+            'time' => $pending['time'],
+            'theater' => $pending['theater'],
+            'seats' => $pending['seats'],
+            'price' => $pending['total_price'],
+            'user_id' => $_SESSION['user_id'],
+            'pending_data' => $pending
+        ];
+    } else {
+        $error = 'Movie not found.';
+    }
 } 
 
 // Handle payment
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $booking_id > 0) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $user_id = $_SESSION['user_id'];
     if ($_POST['action'] === 'pay') {
-        // Accept any payment info - demo mode
-        $stmt = $conn->prepare("UPDATE bookings SET status = 'Paid' WHERE id = ? AND user_id = ? AND status = 'Pending'");
-        $stmt->bind_param("ii", $booking_id, $user_id);
-        if ($stmt->execute() && $stmt->affected_rows > 0) {
-            $stmt->close();
-            $conn->close();
-            header("Location: confirmation.php?booking_id=" . $booking_id);
-            exit;
+        $pending = $_SESSION['pending_booking'] ?? null;
+        
+        if ($booking_id > 0) {
+            $stmt = $conn->prepare("UPDATE bookings SET status = 'Paid' WHERE id = ? AND user_id = ? AND status = 'Pending'");
+            $stmt->bind_param("ii", $booking_id, $user_id);
+            if ($stmt->execute() && $stmt->affected_rows > 0) {
+                $stmt->close();
+                header("Location: confirmation.php?booking_id=" . $booking_id);
+                exit;
+            } else {
+                $error = 'Payment failed. Please try again.';
+            }
+        } elseif ($pending) {
+            $stmt = $conn->prepare('
+                INSERT INTO bookings 
+                (user_id, movie_id, movie_title, date, time, theater, seats, price, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, "Paid", NOW())
+            ');
+            $stmt->bind_param(
+                'iisssssd',
+                $user_id,
+                $pending['movie_id'],
+                $pending['movie_title'],
+                $pending['date'],
+                $pending['time'],
+                $pending['theater'],
+                $pending['seats'],
+                $pending['total_price']
+            );
+            
+            if ($stmt->execute()) {
+                $new_booking_id = $conn->insert_id;
+                $stmt->close();
+                markSeatsOccupied($conn, $new_booking_id, $pending['movie_id'], $pending['theater'], $pending['seats'], $pending['date'], $pending['time']);
+                unset($_SESSION['pending_booking']);
+                header("Location: confirmation.php?booking_id=" . $new_booking_id);
+                exit;
+            } else {
+                $error = 'Booking creation failed. Please try again.';
+            }
         } else {
-            $error = 'Payment failed. Please try again.';
+            $error = 'No pending booking found.';
         }
     } elseif ($_POST['action'] === 'cancel') {
-        // Release seats before deleting booking
-        releaseSeats($conn, $booking_id);
-        
-        $stmt = $conn->prepare("DELETE FROM bookings WHERE id = ? AND user_id = ? AND status = 'Pending'");
-        $stmt->bind_param("ii", $booking_id, $user_id);
-        $stmt->execute();
-        $stmt->close();
-        $conn->close();
+        if ($booking_id > 0) {
+            releaseSeats($conn, $booking_id);
+            $stmt = $conn->prepare("DELETE FROM bookings WHERE id = ? AND user_id = ? AND status = 'Pending'");
+            $stmt->bind_param("ii", $booking_id, $user_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        unset($_SESSION['pending_booking']);
         header("Location: index.php");
         exit;
     }
 }
 
-$conn->close();
+$pageTitle = 'Payment - Movie Booking';
+$activePage = '';
+include 'includes/public-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment - Movie Booking</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#2563eb',
-                    }
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-indigo-50 via-blue-50 to-emerald-50 min-h-screen py-8 px-4">
-    <div class="max-w-4xl mx-auto">
-        <!-- Navbar -->
-        <nav class="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl mb-8 p-4 border border-white/50">
-            <div class="flex justify-between items-center">
-                <a href="index.php" class="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">MovieBooking</a>
-                <div class="flex items-center space-x-4">
-                    <a href="my-bookings.php" class="text-gray-700 hover:text-primary font-medium">My Bookings</a>
-                    <a href="logout.php" class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all">Logout</a>
-                </div>
-            </div>
-        </nav>
 
+    <div class="max-w-4xl mx-auto px-4 py-8 pt-24">
         <?php if ($error): ?>
-        <div class="bg-red-50 border-2 border-red-200 rounded-3xl p-8 text-center mb-8">
-            <svg class="w-20 h-20 text-red-400 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-neutral-800 border border-red-700 rounded-xl p-8 text-center">
+            <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <h2 class="text-3xl font-bold text-red-900 mb-4"><?php echo htmlspecialchars($error); ?></h2>
-            <a href="index.php" class="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all">Back to Movies</a>
+            <h2 class="text-xl font-bold text-white mb-2"><?php echo htmlspecialchars($error); ?></h2>
+            <a href="index.php" class="inline-block bg-netflix-red hover:bg-red-700 text-white px-6 py-2 rounded font-semibold transition-all duration-200">Back to Movies</a>
         </div>
         <?php elseif ($booking): ?>
-        <div class="grid lg:grid-cols-2 gap-8 items-start">
+        <div class="grid lg:grid-cols-2 gap-6">
             <!-- Booking Summary -->
             <div class="lg:row-span-2">
-                <div class="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/50">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                        <svg class="w-8 h-8 mr-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-neutral-800 rounded-xl p-6 shadow-lg border border-neutral-700 sticky top-24">
+                    <h2 class="text-lg font-bold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-netflix-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Booking #<?php echo (int)$booking['id']; ?>
+                        <?php echo $booking_id > 0 ? 'Booking #' . (int)$booking['id'] : 'Confirm Booking'; ?>
                     </h2>
-                    <?php if ($booking['poster_url']): ?>
-                    <img src="<?php echo htmlspecialchars($booking['poster_url']); ?>" alt="<?php echo htmlspecialchars($booking['movie_title']); ?>" class="w-full h-64 object-cover rounded-2xl shadow-xl mb-6">
+                    <?php 
+                    $poster_url = $booking['poster_url'] ?? '';
+                    if (empty($poster_url) && isset($booking['movie_id'])) {
+                        $stmt = $conn->prepare("SELECT poster_url FROM movies WHERE id = ?");
+                        $stmt->bind_param("i", $booking['movie_id']);
+                        $stmt->execute();
+                        $movie_data = $stmt->get_result()->fetch_assoc();
+                        $stmt->close();
+                        $poster_url = $movie_data['poster_url'] ?? '';
+                    }
+                    if ($poster_url): ?>
+                    <img src="<?php echo htmlspecialchars($poster_url); ?>" alt="<?php echo htmlspecialchars($booking['movie_title']); ?>" class="w-full h-48 object-cover rounded-lg shadow-lg mb-4">
                     <?php endif; ?>
-                    <div class="space-y-4 text-lg">
-                        <div><strong>Movie:</strong> <?php echo htmlspecialchars($booking['movie_title']); ?></div>
-                        <div><strong>Date:</strong> <?php echo date('M j, Y', strtotime($booking['date'])); ?></div>
-                        <div><strong>Time:</strong> <?php echo date('g:i A', strtotime($booking['time'])); ?></div>
-                        <div><strong>Theater:</strong> <?php echo htmlspecialchars($booking['theater']); ?></div>
-                        <div><strong>Seats:</strong> <?php echo htmlspecialchars($booking['seats']); ?> (<?php echo count(array_filter(explode(',', $booking['seats']))); ?> seats)</div>
-                        <div class="text-3xl font-bold text-primary bg-gradient-to-r from-primary/10 p-4 rounded-2xl">
-                            Total: ₱<?php echo number_format($booking['price'], 2); ?>
+                    <div class="space-y-2 text-sm">
+                        <div><span class="text-gray-400">Movie:</span> <span class="text-white"><?php echo htmlspecialchars($booking['movie_title']); ?></span></div>
+                        <div><span class="text-gray-400">Date:</span> <span class="text-white"><?php echo date('M j, Y', strtotime($booking['date'])); ?></span></div>
+                        <div><span class="text-gray-400">Time:</span> <span class="text-white"><?php echo date('g:i A', strtotime($booking['time'])); ?></span></div>
+                        <div><span class="text-gray-400">Theater:</span> <span class="text-white"><?php echo htmlspecialchars($booking['theater']); ?></span></div>
+                        <div><span class="text-gray-400">Seats:</span> <span class="text-white"><?php echo htmlspecialchars($booking['seats']); ?> (<?php echo count(array_filter(explode(',', $booking['seats']))); ?>)</span></div>
+                        <div class="mt-4 p-3 bg-neutral-900 rounded-lg text-center">
+                            <span class="text-gray-400">Total:</span>
+                            <span class="text-2xl font-bold text-netflix-red ml-2">₱<?php echo number_format($booking['price'], 2); ?></span>
                         </div>
                     </div>
                 </div>
@@ -126,50 +161,52 @@ $conn->close();
 
             <!-- Payment Form -->
             <div>
-                <div class="bg-gradient-to-br from-emerald-50 to-blue-50/50 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-10 border border-emerald-200">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-8 text-center flex items-center justify-center">
-                        <svg class="w-8 h-8 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-neutral-800 rounded-xl p-6 shadow-lg border border-neutral-700">
+                    <h3 class="text-lg font-bold text-white mb-4 text-center flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                         </svg>
                         Secure Payment
                     </h3>
-                    <form method="POST" class="space-y-6">
+                    <form method="POST" class="space-y-4">
                         <input type="hidden" name="action" value="pay">
+                        <?php if ($booking_id > 0): ?>
                         <input type="hidden" name="booking_id" value="<?php echo $booking_id; ?>">
+                        <?php endif; ?>
                         
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-3">Card Number</label>
-                            <input type="text" name="card_number" placeholder="Any card number works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all text-lg tracking-wider" autocomplete="cc-number">
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Card Number</label>
+                            <input type="text" name="card_number" placeholder="Any card number works" class="w-full px-3 py-2 bg-neutral-900 border border-neutral-600 rounded-lg text-white focus:border-netflix-red focus:ring-1 focus:ring-netflix-red transition-all" autocomplete="cc-number">
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-3">Expiry Date</label>
-                                <input type="text" name="expiry" placeholder="Any date works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-exp">
+                                <label class="block text-sm font-medium text-gray-400 mb-2">Expiry Date</label>
+                                <input type="text" name="expiry" placeholder="Any date works" class="w-full px-3 py-2 bg-neutral-900 border border-neutral-600 rounded-lg text-white focus:border-netflix-red focus:ring-1 focus:ring-netflix-red transition-all" autocomplete="cc-exp">
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-3">CVV</label>
-                                <input type="text" name="cvv" placeholder="Any CVV works" class="w-full px-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all" autocomplete="cc-csc">
+                                <label class="block text-sm font-medium text-gray-400 mb-2">CVV</label>
+                                <input type="text" name="cvv" placeholder="Any CVV works" class="w-full px-3 py-2 bg-neutral-900 border border-neutral-600 rounded-lg text-white focus:border-netflix-red focus:ring-1 focus:ring-netflix-red transition-all" autocomplete="cc-csc">
                             </div>
                         </div>
                         
-                        <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                            <button type="submit" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-2xl shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all text-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor">
+                        <div class="pt-2">
+                            <button type="submit" class="w-full bg-netflix-red hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12"></path>
                                 </svg>
-                                Pay Now ₱<?php echo number_format($booking['price'], 2); ?>
+                                Pay ₱<?php echo number_format($booking['price'], 2); ?>
                             </button>
                         </div>
-                        <div class="pt-4">
-                            <button type="button" onclick="if(confirm('Cancel booking #<?php echo $booking_id; ?>?')){window.location.href='cancel-booking.php?booking_id=<?php echo $booking_id; ?>';}" class="w-full bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white font-bold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all text-lg">Cancel Booking</button>
+                        <div class="pt-2">
+                            <button type="submit" name="action" value="cancel" class="w-full bg-neutral-700 hover:bg-neutral-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200">Cancel Booking</button>
                         </div>
                     </form>
-                    <p class="text-xs text-gray-500 mt-6 text-center">Demo mode • No real charge • Secure checkout</p>
+                    <p class="text-xs text-gray-500 mt-3 text-center">Demo mode • No real charge</p>
                 </div>
             </div>
         </div>
         <?php endif; ?>
     </div>
-</body>
-</html>
+
+<?php $conn->close(); ?>

@@ -71,44 +71,28 @@ if ($movie_id <= 0 || !$date || !$time || !$theater || !$selected_seats) {
                 }
             }
 
-            if (!$error) {
+if (!$error) {
                 $total_price = count($seats_array) * 250;
                 $seats_str = implode(',', $seats_array);
 
-                // ✅ FIXED BIND PARAM TYPES
-                $stmt = $conn->prepare('
-                    INSERT INTO bookings 
-                    (user_id, movie_id, movie_title, date, time, theater, seats, price, status, created_at)
-                    VALUES (?, ?, (SELECT title FROM movies WHERE id=?), ?, ?, ?, ?, ?, "Pending", NOW())
-                ');
+                $stmt = $conn->prepare("SELECT title FROM movies WHERE id = ?");
+                $stmt->bind_param("i", $movie_id);
+                $stmt->execute();
+                $movie = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
 
-                $stmt->bind_param(
-                    'iiissssd',
-                    $_SESSION['user_id'],
-                    $movie_id,
-                    $movie_id,
-                    $date,
-                    $time,
-                    $theater,
-                    $seats_str,
-                    $total_price
-                );
+                $_SESSION['pending_booking'] = [
+                    'movie_id' => $movie_id,
+                    'movie_title' => $movie['title'] ?? 'Unknown Movie',
+                    'date' => $date,
+                    'time' => $time,
+                    'theater' => $theater,
+                    'seats' => $seats_str,
+                    'total_price' => $total_price
+                ];
 
-                if ($stmt->execute()) {
-                    $booking_id = $conn->insert_id;
-                    $stmt->close();
-
-                    if (markSeatsOccupied($conn, $booking_id, $movie_id, $theater, $seats_str, $date, $time)) {
-                        $_SESSION['booking_message'] = 'Booking successful!';
-                        header("Location: payment.php?booking_id=" . $booking_id);
-                        exit;
-                    } else {
-                        $conn->query("DELETE FROM bookings WHERE id=$booking_id");
-                        $error = 'Seat reservation failed.';
-                    }
-                } else {
-                    $error = 'Insert failed.';
-                }
+                header("Location: payment.php");
+                exit;
             }
         }
     }

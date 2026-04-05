@@ -106,9 +106,8 @@ $pageH1 = 'Bookings Management';
                                 <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Date</th>
                                 <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Time</th>
                                 <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Theater</th>
-                                <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Price</th>
-                                <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">View</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -138,25 +137,12 @@ $pageH1 = 'Bookings Management';
                                 <td class="px-6 py-4">
                                     <span class="inline-flex px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 ring-1 ring-blue-200 shadow-sm"><?php echo htmlspecialchars($booking['theater']); ?></span>
                                 </td>
-                                <td class="px-6 py-4">
-                                    <span class="px-4 py-2 rounded-full text-sm font-bold ring-2 ring-inset <?php echo $statusClass; ?> shadow-lg"><?php echo ucfirst($booking['status']); ?></span>
-                                </td>
                                 <td class="px-6 py-4 font-bold text-xl text-gray-900">₱<?php echo number_format($booking['price'], 2); ?></td>
                                 <td class="px-6 py-4">
-                                    <div class="flex flex-col sm:flex-row gap-2">
-                                        <button onclick="viewDetails(<?php echo (int)$booking['id']; ?>)" 
-                                                class="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all text-sm whitespace-nowrap">
-                                            View
-                                        </button>
-                                        <form method="POST" class="flex-1 sm:w-auto" style="min-width: 140px;" onsubmit="return confirmStatusChange(this)">
-                                            <input type="hidden" name="booking_id" value="<?php echo (int)$booking['id']; ?>">
-                                            <select name="status" class="w-full text-sm border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all" onchange="this.form.submit()">
-                                                <option value="Pending" <?php echo $booking['status'] === 'Pending' ? 'selected' : ''; ?>>Pending</option>
-                                                <option value="Confirmed" <?php echo $booking['status'] === 'Confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                                                <option value="Cancelled" <?php echo $booking['status'] === 'Cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                                            </select>
-                                        </form>
-                                    </div>
+                                    <button onclick="viewDetails(<?php echo (int)$booking['id']; ?>)" 
+                                            class="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all text-sm whitespace-nowrap">
+                                        View
+                                    </button>
                                 </td>
                             </tr>
                             <?php endwhile; 
@@ -164,7 +150,7 @@ $pageH1 = 'Bookings Management';
                             ?>
                             <?php if (!$hasBookings): ?>
                             <tr>
-                                <td colspan="9" class="px-6 py-16 text-center">
+                                <td colspan="7" class="px-6 py-16 text-center">
                                     <div class="space-y-4">
                                         <svg class="w-20 h-20 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -189,22 +175,30 @@ $pageH1 = 'Bookings Management';
                     'total' => (int)$conn->query("SELECT COUNT(*) FROM bookings")->fetch_row()[0]
                 ];
                 ?>
+                <?php if ($stats['confirmed'] > 0): ?>
                 <div class="group bg-gradient-to-br from-emerald-400/20 to-emerald-500/20 border-2 border-emerald-200/50 backdrop-blur-xl rounded-3xl p-8 text-center hover:shadow-2xl transition-all hover:-translate-y-1">
                     <div class="text-4xl font-black text-emerald-700 mb-2 group-hover:scale-110 transition-transform"><?php echo $stats['confirmed']; ?></div>
                     <div class="text-emerald-800 font-bold">Confirmed Today</div>
                 </div>
+                <?php endif; ?>
+                <?php if ($stats['pending'] > 0): ?>
                 <div class="group bg-gradient-to-br from-yellow-400/20 to-yellow-500/20 border-2 border-yellow-200/50 backdrop-blur-xl rounded-3xl p-8 text-center hover:shadow-2xl transition-all hover:-translate-y-1">
                     <div class="text-4xl font-black text-yellow-700 mb-2 group-hover:scale-110 transition-transform"><?php echo $stats['pending']; ?></div>
                     <div class="text-yellow-800 font-bold">Pending Review</div>
                 </div>
-                <div class="group bg-gradient-to-br from-gray-400/20 to-gray-500/20 border-2 border-gray-200/50 backdrop-blur-xl rounded-3xl p-8 text-center hover:shadow-2xl transition-all hover:-translate-y-1">
-                    <div class="text-4xl font-black text-gray-900 mb-2 group-hover:scale-110 transition-transform">₱<?php echo number_format($stats['revenue'], 2); ?></div>
-                    <div class="text-gray-800 font-bold">Today's Revenue</div>
+                <?php endif; ?>
+                <?php if ($stats['revenue'] > 0): ?>
+                <div class="group bg-gradient-to-br from-gray-400/20 to-gray-500/20 border-2 border-gray-200/50 backdrop-blur-xl rounded-3xl p-4 sm:p-6 md:p-8 text-center hover:shadow-2xl transition-all hover:-translate-y-1">
+                    <div class="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 mb-2 group-hover:scale-110 transition-transform break-all">₱<?php echo number_format($stats['revenue'], 2); ?></div>
+                    <div class="text-gray-800 font-bold text-sm sm:text-base">Today's Revenue</div>
                 </div>
+                <?php endif; ?>
+                <?php if ($stats['total'] > 0): ?>
                 <div class="group bg-gradient-to-br from-blue-400/20 to-blue-500/20 border-2 border-blue-200/50 backdrop-blur-xl rounded-3xl p-8 text-center hover:shadow-2xl transition-all hover:-translate-y-1">
                     <div class="text-4xl font-black text-blue-700 mb-2 group-hover:scale-110 transition-transform"><?php echo $stats['total']; ?></div>
                     <div class="text-blue-800 font-bold">Total Bookings</div>
                 </div>
+                <?php endif; ?>
             </div>
 
         </main>

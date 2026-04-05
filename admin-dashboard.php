@@ -81,7 +81,7 @@ $pageH1 = 'Dashboard';
                         </div>
                         <div class="ml-4">
                             <p class="text-sm font-medium text-gray-600">Revenue Today</p>
-                            <p class="text-3xl font-bold text-gray-900">₱<?php echo number_format($revenueToday, 2); ?></p>
+                            <p class="text-2xl sm:text-3xl font-bold text-gray-900 break-all">₱<?php echo number_format($revenueToday, 2); ?></p>
                         </div>
                     </div>
                 </div>
@@ -98,7 +98,6 @@ $pageH1 = 'Dashboard';
                                     <th class="text-left py-4 font-semibold text-gray-900">Movie</th>
                                     <th class="text-left py-4 font-semibold text-gray-900">User</th>
                                     <th class="text-left py-4 font-semibold text-gray-900">Time</th>
-                                    <th class="text-left py-4 font-semibold text-gray-900">Status</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
@@ -107,12 +106,11 @@ $pageH1 = 'Dashboard';
                                         <td class="py-4 font-medium text-gray-900"><?php echo htmlspecialchars($booking['movie_title']); ?></td>
                                         <td class="py-4 text-gray-700"><?php echo htmlspecialchars($booking['user_name'] ?: 'Unknown'); ?></td>
                                         <td class="py-4 text-gray-700"><?php echo date('M j, g:i A', strtotime($booking['created_at'])); ?></td>
-                                        <td><span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $booking['status'] === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'; ?>"><?php echo ucfirst($booking['status']); ?></span></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($recentBookings)): ?>
                                     <tr>
-                                        <td colspan="4" class="py-8 text-center text-gray-500">
+                                        <td colspan="3" class="py-8 text-center text-gray-500">
                                             No recent bookings found. Book some tickets to see activity here.
                                         </td>
                                     </tr>

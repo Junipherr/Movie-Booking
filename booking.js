@@ -295,19 +295,44 @@ function generateSeatMap() {
     const config = getSeatConfig();
     let html = '';
     
-    for (let row of rows) {
-        html += `<div class="flex items-center justify-center mb-3 sm:mb-4 gap-0.5 sm:gap-1">`;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const row = rows[rowIndex];
+        let curveOffset = 0;
+        if (row === 'A') curveOffset = 4;
+        else if (row === 'B') curveOffset = 3;
+        else if (row === 'C') curveOffset = 2;
+        else if (row === 'D') curveOffset = 1;
+        else if (row >= 'E' && row <= 'G') curveOffset = 0;
+        else if (row === 'H') curveOffset = -1;
+        else if (row === 'I') curveOffset = -2;
+        else if (row === 'J') curveOffset = -3;
+        
+        html += `<div class="flex items-center justify-center mb-2 sm:mb-3 gap-1 sm:gap-2">`;
         html += `<span class="w-9 sm:w-10 md:w-12 text-right font-bold text-sm sm:text-base md:text-lg mr-1 sm:mr-2 md:mr-4 whitespace-nowrap flex-shrink-0">${row}</span>`;
         
-        for (let seat = 1; seat <= config.totalSeats; seat++) {
+        const totalSeats = config.totalSeats;
+        for (let seat = 1; seat <= totalSeats; seat++) {
             const seatId = `${row}${seat}`;
             const isOccupied = occupiedSeats.includes(seatId);
             const status = isOccupied ? 'occupied' : 'available';
+            
+            let seatOffset = 0;
+            const centerStart = Math.ceil(totalSeats / 2) - 1;
+            const centerEnd = Math.floor(totalSeats / 2);
+            if (seat >= centerStart && seat <= centerEnd) {
+                seatOffset = curveOffset;
+            } else if (seat === centerStart - 1 || seat === centerEnd + 1) {
+                seatOffset = Math.max(0, curveOffset - 1);
+            } else if (seat <= 2 || seat >= totalSeats - 1) {
+                seatOffset = Math.max(0, curveOffset - 2);
+            }
+            const translateClass = seatOffset !== 0 ? `translate-y-[${seatOffset}px]` : '';
+            
             const seatClasses = status === 'occupied' 
                 ? 'bg-red-500 border-red-600 text-white cursor-not-allowed'
-                : 'bg-green-500 border-green-600 text-white shadow-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation';
+                : 'bg-green-500 border-green-600 text-white shadow-lg cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 touch-manipulation';
             
-            html += `<div class="seat ${status} relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 min-w-[2.5rem] min-h-[2.5rem] rounded-lg border-4 flex items-center justify-center font-bold text-xs sm:text-sm shadow-md ${seatClasses} seat-${seatId}" data-seat="${seatId}" data-status="${status}" aria-label="Seat ${seatId} ${status}">`;
+            html += `<div class="seat ${status} relative w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 min-w-[2.5rem] min-h-[2.5rem] rounded-lg border-4 flex items-center justify-center font-bold text-xs sm:text-sm shadow-md ${seatClasses} ${translateClass} seat-${seatId}" data-seat="${seatId}" data-status="${status}" aria-label="Seat ${seatId} ${status}">`;
             if (isOccupied) {
                 html += `<span class="text-sm font-bold">X</span>`;
                 html += `<span class="absolute -top-2 -right-2 bg-red-700 text-white text-[10px] px-1 rounded">Occupied</span>`;

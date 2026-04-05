@@ -1,6 +1,10 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 // Shared admin header: Tailwind + sidebar + topbar + JS
 // Usage: include 'includes/admin-header.php'; then set $pageTitle, $pageActiveNav, $pageH1, $pageSubtitle
+$adminLoggedIn = isset($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -71,7 +75,7 @@
     <!-- Main Content Wrapper -->
     <div class="lg:pl-64">
         <!-- Topbar -->
-        <header class="bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-gray-700/50">
+        <header class="bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-gray-700/50 relative z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <button id="sidebarToggle" class="lg:hidden p-2 rounded-lg text-gray-200 hover:bg-gray-700/50">
@@ -80,9 +84,39 @@
                         </svg>
                     </button>
                     <h1 class="text-xl font-bold text-white"><?php echo htmlspecialchars($pageH1 ?? 'Dashboard'); ?> <span class="text-gray-200"><?php echo htmlspecialchars($pageSubtitle ?? 'Admin'); ?></span></h1>
-                    <div class="flex items-center space-x-4">
-                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold">A</div>
+                    <div class="flex items-center space-x-4 relative" id="adminDropdown">
+                        <button id="adminProfileBtn" class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold"><?php echo strtoupper(substr($_SESSION['user_name'] ?? 'A', 0, 1)); ?></div>
+                            <span class="text-white text-sm hidden md:inline"><?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></span>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div id="adminDropdownMenu" class="absolute right-0 top-full mt-2 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-lg hidden z-50">
+                            <div class="p-3 border-b border-gray-600">
+                                <p class="text-sm font-medium text-white"><?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></p>
+                                <p class="text-xs text-gray-400"><?php echo htmlspecialchars($_SESSION['user_email'] ?? ''); ?></p>
+                            </div>
+                            <a href="admin-dashboard.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors">Dashboard</a>
+                            <a href="logout.php" class="block px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors">Logout</a>
+                        </div>
                     </div>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const adminProfileBtn = document.getElementById('adminProfileBtn');
+                            const adminDropdownMenu = document.getElementById('adminDropdownMenu');
+                            if (adminProfileBtn && adminDropdownMenu) {
+                                adminProfileBtn.addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    adminDropdownMenu.classList.toggle('hidden');
+                                });
+                                document.addEventListener('click', function(e) {
+                                    if (!adminProfileBtn.contains(e.target) && !adminDropdownMenu.contains(e.target)) {
+                                        adminDropdownMenu.classList.add('hidden');
+                                    }
+                                });
+                            }
+                        });
+                    </script>
                 </div>
             </div>
         </header>

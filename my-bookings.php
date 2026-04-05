@@ -19,167 +19,134 @@ $conn->close();
 
 $noBookings = empty($bookings);
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Bookings - Movie Booking</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232563eb'/><text y='.9em' font-size='90'>🎬</text></svg>" type="image/svg+xml">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
 <?php
 $pageTitle = 'My Bookings - Movie Booking';
 $activePage = 'my-bookings';
 include 'includes/public-header.php';
 ?>
-<div class="pt-24">
 
 <?php if (isset($_GET['cancelled'])): ?>
-        <div class="mb-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-            <div class="flex items-center">
-                <svg class="w-6 h-6 text-emerald-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                <div>
-                    <p class="text-emerald-800 font-semibold">Booking cancelled successfully!</p>
+        <div class="max-w-7xl mx-auto px-4 md:px-8 pt-24 mb-4">
+            <div class="bg-emerald-900/50 border border-emerald-700 rounded-lg p-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <p class="text-emerald-300">Booking cancelled successfully!</p>
                 </div>
             </div>
         </div>
     <?php elseif (isset($_GET['deleted'])): ?>
-        <div class="mb-8 bg-red-50 border border-red-200 rounded-2xl p-6 success-notification">
-            <div class="flex items-center">
-                <svg class="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
-                </svg>
-                <div>
-                    <p class="text-red-800 font-semibold">Booking permanently deleted!</p>
+        <div class="max-w-7xl mx-auto px-4 md:px-8 pt-24 mb-4 success-notification">
+            <div class="bg-red-900/50 border border-red-700 rounded-lg p-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    <p class="text-red-300">Booking permanently deleted!</p>
                 </div>
             </div>
         </div>
     <?php elseif (isset($_GET['error'])): ?>
-        <div class="mb-8 bg-red-50 border border-red-200 rounded-2xl p-6">
-            <div class="flex items-center">
-                <svg class="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <div>
-                    <p class="text-red-800 font-semibold">Failed to cancel or delete booking. Please try again.</p>
+        <div class="max-w-7xl mx-auto px-4 md:px-8 pt-24 mb-4">
+            <div class="bg-red-900/50 border border-red-700 rounded-lg p-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p class="text-red-300">Failed to cancel or delete booking. Please try again.</p>
                 </div>
             </div>
         </div>
     <?php endif; ?>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">My Bookings</h1>
-            <p class="text-xl text-gray-600">View and manage your upcoming tickets</p>
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-8 pt-12">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-white mb-1">My Bookings</h1>
+            <p class="text-gray-400">View and manage your upcoming tickets</p>
         </div>
 
         <?php if ($noBookings): ?>
-        <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-16 text-center border border-white/50">
-            <svg class="w-20 h-20 text-gray-400 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-neutral-800 rounded-xl p-12 text-center border border-neutral-700">
+            <svg class="w-16 h-16 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
             </svg>
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">No Bookings Yet</h2>
-            <p class="text-lg text-gray-600 mb-8">Book your first movie ticket to see it here.</p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="index.php" class="bg-primary hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">Browse Movies</a>
-                <a href="bookings.php" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">New Booking</a>
+            <h2 class="text-xl font-bold text-white mb-2">No Bookings Yet</h2>
+            <p class="text-gray-400 mb-6">Book your first movie ticket to see it here.</p>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <a href="index.php" class="bg-netflix-red hover:bg-red-700 text-white px-6 py-2 rounded font-semibold transition-all duration-200">Browse Movies</a>
+                <a href="booking.php" class="bg-neutral-700 hover:bg-neutral-600 text-white px-6 py-2 rounded font-semibold transition-all duration-200">New Booking</a>
             </div>
         </div>
         <?php else: ?>
-        <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 overflow-hidden">
+        <div class="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-neutral-900">
                         <tr>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Ticket</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Movie</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Date & Time</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Theater</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Seats</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Price</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-5 text-left text-xs font-bold text-gray-900 uppercase tracking-wider">Actions</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Ticket</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Movie</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Date & Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Theater</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Seats</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Price</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-neutral-700">
                         <?php foreach ($bookings as $booking): 
-                            $statusClass = match($booking['status']) {
-                                'Confirmed' => 'bg-emerald-100 text-emerald-800',
-                                'Cancelled' => 'bg-red-100 text-red-800',
-                                default => 'bg-yellow-100 text-yellow-800'
-                            };
                         ?>
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4">
-                                <span class="font-mono font-semibold text-sm bg-gray-100 px-3 py-1 rounded-full">#<?php echo str_pad($booking['id'], 4, '0', STR_PAD_LEFT); ?></span>
+                        <tr class="hover:bg-neutral-700/50 transition-colors">
+                            <td class="px-4 py-3">
+                                <span class="font-mono text-sm bg-neutral-700 px-2 py-1 rounded text-gray-300">#<?php echo str_pad($booking['id'], 4, '0', STR_PAD_LEFT); ?></span>
                             </td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-3">
                                 <?php if ($booking['poster_url']): ?>
-                                <div class="flex items-center space-x-3">
-                                    <img src="<?php echo htmlspecialchars($booking['poster_url']); ?>" alt="" class="w-12 h-16 object-cover rounded-lg">
-                                    <div>
-                                        <div class="font-semibold text-gray-900"><?php echo htmlspecialchars($booking['movie_title']); ?></div>
-                                    </div>
+                                <div class="flex items-center gap-2">
+                                    <img src="<?php echo htmlspecialchars($booking['poster_url']); ?>" alt="" class="w-10 h-14 object-cover rounded">
+                                    <span class="text-white font-medium"><?php echo htmlspecialchars($booking['movie_title']); ?></span>
                                 </div>
                                 <?php else: ?>
-                                <div class="font-semibold text-gray-900"><?php echo htmlspecialchars($booking['movie_title']); ?></div>
+                                <span class="text-white font-medium"><?php echo htmlspecialchars($booking['movie_title']); ?></span>
                                 <?php endif; ?>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">
+                            <td class="px-4 py-3 text-sm text-gray-300">
                                 <div><?php echo date('M j, Y', strtotime($booking['date'])); ?></div>
-                                <div class="font-semibold"><?php echo date('g:i A', strtotime($booking['time'])); ?></div>
+                                <div class="text-gray-400"><?php echo date('g:i A', strtotime($booking['time'])); ?></div>
                             </td>
-                            <td class="px-6 py-4">
-                                <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"><?php echo htmlspecialchars($booking['theater']); ?></span>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-900/50 text-blue-300 border border-blue-700"><?php echo htmlspecialchars($booking['theater']); ?></span>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-wrap gap-2">
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-1">
                                     <?php 
                                         $seats = array_filter(explode(',', $booking['seats'] ?? ''));
                                         foreach ($seats as $seat):
                                             $seat = trim($seat);
                                     ?>
-                                        <span class="inline-flex px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-100 text-blue-800 border border-blue-300">
+                                        <span class="px-2 py-0.5 text-xs font-bold rounded bg-blue-900/50 text-blue-300 border border-blue-700">
                                             <?php echo htmlspecialchars($seat); ?>
                                         </span>
                                     <?php endforeach; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 font-semibold text-gray-900">₱<?php echo number_format($booking['price'], 2); ?></td>
-                            <td class="px-6 py-4">
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusClass; ?>"><?php echo ucfirst($booking['status']); ?></span>
-                            </td>
-                            <td class="px-6 py-4 text-sm">
-                                <a href="confirmation.php?booking_id=<?php echo (int)$booking['id']; ?>" class="text-primary hover:text-blue-700 font-medium mr-4">View</a>
+                            <td class="px-4 py-3 font-semibold text-white">₱<?php echo number_format($booking['price'], 2); ?></td>
+                            <td class="px-4 py-3 text-sm">
+                                <a href="confirmation.php?booking_id=<?php echo (int)$booking['id']; ?>" class="text-gray-300 hover:text-white font-medium mr-3">View</a>
                                 
                                 <?php if ($booking['status'] !== 'Cancelled'): ?>
-                                <form method="POST" action="cancel-booking.php" style="display:inline;" class="inline-flex items-center text-red-600 hover:text-red-700 font-medium mr-3" onsubmit="return confirm('Cancel booking #<?php echo $booking['id']; ?>?');">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
+                                <form method="POST" action="cancel-booking.php" style="display:inline;" onsubmit="return confirm('Cancel booking #<?php echo $booking['id']; ?>?');">
                                     <input type="hidden" name="booking_id" value="<?php echo (int)$booking['id']; ?>">
-                                    <button type="submit" class="bg-transparent border-none p-0 cursor-pointer">Cancel</button>
+                                    <button type="submit" class="text-red-400 hover:text-red-300 font-medium mr-2 bg-transparent border-none cursor-pointer">Cancel</button>
                                 </form>
                                 <?php endif; ?>
                                 
-                                <!-- Permanent Delete - always available -->
                                 <form method="POST" action="delete-booking.php" style="display:inline;" onsubmit="return confirm('Permanently delete booking #<?php echo $booking['id']; ?>? This action cannot be undone.');">
                                     <input type="hidden" name="booking_id" value="<?php echo (int)$booking['id']; ?>">
-                                    <button type="submit" class="inline-flex items-center text-red-600 hover:text-red-900 font-medium ml-2 p-1 rounded hover:bg-red-50 transition-colors bg-transparent border-none cursor-pointer focus:outline-none" title="Permanently Delete">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <button type="submit" class="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-900/30 transition-colors bg-transparent border-none cursor-pointer" title="Permanently Delete">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                         </svg>
-                                        <span class="sr-only">Delete</span>
                                     </button>
                                 </form>
                             </td>
@@ -191,15 +158,5 @@ include 'includes/public-header.php';
         </div>
         <?php endif; ?>
     </div>
-
-    <script>
-        // Auto-hide success message after 3 seconds
-        const successMsg = document.querySelector('.success-notification');
-        if (successMsg) {
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 3000);
-        }
-    </script>
 
 <?php include 'includes/public-footer.php'; ?>

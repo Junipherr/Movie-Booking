@@ -9,12 +9,6 @@ $error = '';
 if (isset($_GET['booking_id'])) {
     $booking_id = (int)$_GET['booking_id'];
     $user_id = $_SESSION['user_id'];
-// <script>
-//   // Clear booking cache on confirmation page load
-//   sessionStorage.removeItem('selectedSeats');
-//   sessionStorage.removeItem('selectedShow');
-//   console.log('Booking cache cleared');
-// </script>
     
     $stmt = $conn->prepare("SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.id = ? AND b.user_id = ?");
     $stmt->bind_param("ii", $booking_id, $user_id);
@@ -28,7 +22,6 @@ if (isset($_GET['booking_id'])) {
 } 
 
 if (!$booking && isset($_SESSION['user_id'])) {
-    // Fallback to latest booking
     $stmt = $conn->prepare("SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.user_id = ? ORDER BY b.created_at DESC LIMIT 1");
     $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();
@@ -37,169 +30,136 @@ if (!$booking && isset($_SESSION['user_id'])) {
 }
 
 $conn->close();
+
+$pageTitle = 'Booking Confirmed - Movie Booking';
+$activePage = '';
+include 'includes/public-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Confirmed - Movie Booking</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-<script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#2563eb',
-                    }
-                }
-            }
-        }
-    </script>
+
     <!-- Clear booking cache after successful confirmation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
       sessionStorage.removeItem('selectedSeats');
       sessionStorage.removeItem('selectedShow');
-      console.log('Booking cache cleared on confirmation');
+
+      async function downloadTicket() {
+        const ticketContent = document.querySelector('.bg-neutral-800.rounded-xl.shadow-lg');
+        if (!ticketContent) return;
+
+        try {
+          const { jsPDF } = window.jspdf;
+          const canvas = await html2canvas(ticketContent, {
+            backgroundColor: '#1a1a1a',
+            scale: 2,
+            useCORS: true
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: [80, 150]
+          });
+
+          const imgWidth = 70;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 5, 10, imgWidth, imgHeight);
+          pdf.save('ticket-<?php echo (int)$booking['id']; ?>.pdf');
+        } catch (err) {
+          alert('Could not download ticket. Please try again.');
+          console.error(err);
+        }
+      }
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232563eb'/><text y='.9em' font-size='90'>🎬</text></svg>" type="image/svg+xml">
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        .ticket-stub {
-            position: relative;
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            border: 2px solid #bbf7d0;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-        .ticket-stub::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: -10px;
-            width: 20px;
-            height: 20px;
-            background: #f8fafc;
-            border-radius: 50%;
-            transform: translateY(-50%);
-            border: 2px solid #bbf7d0;
-        }
-        .ticket-stub::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            right: -10px;
-            width: 20px;
-            height: 20px;
-            background: #f8fafc;
-            border-radius: 50%;
-            transform: translateY(-50%);
-            border: 2px solid #bbf7d0;
-        }
-        .ticket-perforation {
-            background-image: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(0,0,0,0.1) 8px, rgba(0,0,0,0.1) 9px);
-            background-size: 17px 1px;
-            background-position: 0 0;
-            background-repeat: repeat-x;
-            height: 1px;
-            margin: 12px 0;
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-emerald-50 via-green-50 to-blue-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="min-h-screen flex items-center justify-center p-4 pt-24">
     <?php if ($error || !$booking): ?>
-    <div class="w-full max-w-2xl">
-        <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-12 text-center">
-            <svg class="w-20 h-20 text-yellow-400 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-            </svg>
-            <h2 class="text-3xl font-bold text-yellow-900 mb-4"><?php echo htmlspecialchars($error ?: 'No Recent Booking'); ?></h2>
-            <p class="text-lg text-yellow-800 mb-8">Check your bookings or make a new one.</p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="my-bookings.php" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg">View My Bookings</a>
-                <a href="index.php" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg">Book Another</a>
-            </div>
-        </div>
-    </div>
-    <?php else: ?>
-    <div class="w-full max-w-2xl">
-        <!-- Success Card -->
-        <div class="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-12 text-center border border-white/50">
-            <!-- Success Icon -->
-            <div class="w-24 h-24 bg-gradient-to-r from-emerald-400 to-green-500 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-2xl">
-                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        <div class="w-full max-w-2xl">
+            <div class="bg-neutral-800 rounded-xl p-12 text-center border border-neutral-700">
+                <svg class="w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                 </svg>
-            </div>
-
-            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mb-4">Booking Confirmed!</h1>
-            <p class="text-xl text-gray-600 mb-12 leading-relaxed">Your ticket #<?php echo (int)$booking['id']; ?> has been secured. Enjoy the show!</p>
-
-            <!-- Real Ticket Summary -->
-            <div class="ticket-stub p-8 mb-12">
-                <!-- Movie Poster -->
-                <?php if (!empty($booking['poster_url'])): ?>
-                <div class="text-center mb-6">
-                    <img src="<?php echo htmlspecialchars($booking['poster_url']); ?>" alt="<?php echo htmlspecialchars($booking['movie_title']); ?>" class="w-24 h-36 object-cover rounded-xl shadow-lg mx-auto border-4 border-white">
-                </div>
-                <div class="ticket-perforation"></div>
-                <?php endif; ?>
-
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center pt-4 border-t border-emerald-200">
-                        <span class="text-sm font-medium text-gray-700">Movie</span>
-                        <span class="font-bold text-gray-900"><?php echo htmlspecialchars($booking['movie_title']); ?></span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-gray-700">Date</span>
-                        <span class="font-bold text-gray-900"><?php echo date('M j, Y', strtotime($booking['date'])); ?></span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-gray-700">Time</span>
-                        <span class="font-bold text-gray-900"><?php echo date('g:i A', strtotime($booking['time'])); ?></span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-gray-700">Theater</span>
-                        <span class="font-bold text-gray-900"><?php echo htmlspecialchars($booking['theater']); ?></span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-gray-700">Seats</span>
-                        <?php 
-                        $seats_list = trim($booking['seats'] ?? '');
-                        $seats_count = $seats_list ? count(array_filter(explode(',', $seats_list))) : 0;
-                        ?>
-                        <span class="font-bold text-gray-900"><?php echo htmlspecialchars($seats_list) ?: 'None'; ?> (<?php echo $seats_count; ?> seats)</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm font-medium text-gray-700">Price</span>
-                        <span class="font-bold text-primary">₱<?php echo number_format($booking['price'], 2); ?></span>
-                    </div>
-                    <div class="flex justify-between items-center bg-emerald-100 p-4 rounded-xl">
-                        <span class="text-sm font-semibold text-gray-800">Ticket ID</span>
-                        <span class="font-bold text-emerald-700 tracking-wide">#<?php echo str_pad($booking['id'], 4, '0', STR_PAD_LEFT); ?></span>
-                    </div>
-                    <div class="ticket-perforation"></div>
-                    <div class="text-center pt-6">
-                        <span class="text-4xl">🎫</span>
-                    </div>
-                    <div class="text-xs text-emerald-700 font-medium mt-2">Status: <?php echo ucfirst($booking['status']); ?></div>
+                <h2 class="text-2xl font-bold text-white mb-2"><?php echo htmlspecialchars($error ?: 'No Recent Booking'); ?></h2>
+                <p class="text-gray-400 mb-6">Check your bookings or make a new one.</p>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="my-bookings.php" class="bg-netflix-red hover:bg-red-700 text-white font-semibold px-6 py-2 rounded transition-all duration-200">View My Bookings</a>
+                    <a href="index.php" class="bg-neutral-700 hover:bg-neutral-600 text-white font-semibold px-6 py-2 rounded transition-all duration-200">Browse Movies</a>
                 </div>
             </div>
-
-            <!-- Actions -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="my-bookings.php" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg">View My Bookings</a>
-                <a href="index.php" class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg">Book Another</a>
-            </div>
-
-            <p class="text-sm text-gray-500 mt-8">
-                Confirmation email sent. Ticket ID #<?php echo (int)$booking['id']; ?> • Check spam if not received.
-            </p>
         </div>
-    </div>
+    <?php else: ?>
+        <div class="w-full max-w-md">
+            <!-- Success Card -->
+            <div class="bg-neutral-800 rounded-xl shadow-lg p-8 text-center border border-neutral-700">
+                <!-- Success Icon -->
+                <div class="w-16 h-16 bg-netflix-red rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+
+                <h1 class="text-2xl font-bold text-white mb-2">Booking Confirmed!</h1>
+                <p class="text-gray-400 mb-6">Your ticket #<?php echo (int)$booking['id']; ?> has been secured.</p>
+
+                <!-- Ticket Summary -->
+                <div class="bg-neutral-900 rounded-lg p-4 mb-6 text-left">
+                    <?php if (!empty($booking['poster_url'])): ?>
+                    <div class="text-center mb-4">
+                        <img src="<?php echo htmlspecialchars($booking['poster_url']); ?>" alt="<?php echo htmlspecialchars($booking['movie_title']); ?>" class="w-20 h-28 object-cover rounded-lg mx-auto">
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Movie</span>
+                            <span class="text-white font-medium"><?php echo htmlspecialchars($booking['movie_title']); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Date</span>
+                            <span class="text-white"><?php echo date('M j, Y', strtotime($booking['date'])); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Time</span>
+                            <span class="text-white"><?php echo date('g:i A', strtotime($booking['time'])); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Theater</span>
+                            <span class="text-white"><?php echo htmlspecialchars($booking['theater']); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Seats</span>
+                            <?php 
+                            $seats_list = trim($booking['seats'] ?? '');
+                            $seats_count = $seats_list ? count(array_filter(explode(',', $seats_list))) : 0;
+                            ?>
+                            <span class="text-white"><?php echo htmlspecialchars($seats_list) ?: 'None'; ?> (<?php echo $seats_count; ?>)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Price</span>
+                            <span class="text-netflix-red font-bold">₱<?php echo number_format($booking['price'], 2); ?></span>
+                        </div>
+                        <div class="flex justify-between bg-neutral-800 p-2 rounded mt-2">
+                            <span class="text-gray-400 text-xs">Ticket ID</span>
+                            <span class="text-white font-mono text-xs">#<?php echo str_pad($booking['id'], 4, '0', STR_PAD_LEFT); ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="my-bookings.php" class="bg-netflix-red hover:bg-red-700 text-white font-semibold px-6 py-2 rounded transition-all duration-200">My Bookings</a>
+                    <a href="index.php" class="bg-neutral-700 hover:bg-neutral-600 text-white font-semibold px-6 py-2 rounded transition-all duration-200">Browse Movies</a>
+                </div>
+
+                <p class="text-xs text-gray-500 mt-4 flex items-center justify-center gap-2">
+                    <span>Ticket ID #<?php echo (int)$booking['id']; ?></span>
+                    <button onclick="downloadTicket()" class="text-gray-400 hover:text-green-500 transition-colors" title="Download Ticket">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                    </button>
+                </p>
+        </div>
     <?php endif; ?>
-</body>
-</html>
+    </div>
