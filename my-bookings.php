@@ -1,9 +1,35 @@
 <?php
+/**
+ * My Bookings Page
+ * 
+ * Displays all bookings made by the logged-in user.
+ * Allows viewing details, cancelling, and permanently deleting bookings.
+ * 
+ * @route: my-bookings.php
+ * @method: GET
+ * @requires: includes/auth.php, includes/config.php, includes/public-header.php
+ * 
+ * @db-query: SELECT b.*, m.poster_url, m.title as movie_title FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.user_id = ?
+ * @displays: Table of user bookings with movie, date, time, theater, seats, price, status
+ * @query-params-handled: cancelled=1, deleted=1, error=1 (status messages)
+ * @actions:
+ *   - View → confirmation.php?booking_id=...
+ *   - Cancel → cancel-booking.php (POST)
+ *   - Delete → delete-booking.php (POST)
+ * 
+ * @see confirmation.php (booking details view)
+ * @see cancel-booking.php (cancellation handler)
+ * @see delete-booking.php (permanent deletion handler)
+ */
+
 require_once 'includes/auth.php';
 require_user();
 require_once 'includes/config.php';
 
+// Get current user ID from session
 $user_id = $_SESSION['user_id'];
+
+// Fetch all bookings for this user, ordered by creation date (newest first)
 $stmt = $conn->prepare("
     SELECT b.*, m.poster_url, m.title as movie_title  
     FROM bookings b 
@@ -17,9 +43,10 @@ $bookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 $conn->close();
 
+// Flag for empty state display
 $noBookings = empty($bookings);
-?>
-<?php
+
+// Page metadata
 $pageTitle = 'My Bookings - Movie Booking';
 $activePage = 'my-bookings';
 include 'includes/public-header.php';

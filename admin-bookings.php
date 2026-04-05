@@ -1,10 +1,37 @@
 <?php 
+/**
+ * Admin Bookings Management Page
+ * 
+ * Displays all bookings in the system with admin management features.
+ * Allows viewing booking details and updating booking status (Confirm/Cancel).
+ * 
+ * @route: admin-bookings.php (GET display, POST status update, AJAX details)
+ * @method: GET, POST, AJAX
+ * @requires: includes/auth.php (require_admin), includes/config.php, includes/seat-management.php, includes/admin-header.php
+ * 
+ * @db-queries:
+ *   - List: SELECT b.*, u.name as user_name, u.email FROM bookings b LEFT JOIN users u ON b.user_id = u.id
+ *   - Details: SELECT b.*, u.name as user_name, u.email FROM bookings b LEFT JOIN users u ON b.user_id = u.id WHERE b.id = ?
+ *   - Stats: COUNT queries for confirmed/pending/total bookings, SUM for revenue
+ * 
+ * @ajax-endpoint: action=details&id={booking_id} - Returns booking details as JSON
+ * @post-fields: booking_id, status (Pending|Confirmed|Cancelled)
+ * @actions:
+ *   - View Details: Opens modal with full booking information
+ *   - Update Status: Changes booking status (releases seats if Cancelled)
+ * 
+ * @navigation: Sidebar links to Dashboard, Movies, Bookings, Logout
+ * 
+ * @see admin-dashboard.php (main dashboard)
+ * @see cancel-booking.php (user-side cancellation, calls same releaseSeats function)
+ */
+
 require_once 'includes/auth.php';
 require_admin(); 
 require_once 'includes/config.php';
 require_once 'includes/seat-management.php';
 
-// AJAX details endpoint
+// AJAX details endpoint - returns booking details as JSON
 if (isset($_GET['action']) && $_GET['action'] === 'details' && isset($_GET['id'])) {
     header('Content-Type: application/json');
     $id = (int)$_GET['id'];
@@ -26,12 +53,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'details' && isset($_GET['id']
     exit;
 }
 
+// Handle booking status update (POST form submission)
 $message = '';
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['booking_id'], $_POST['status'])) {
     $booking_id = (int)$_POST['booking_id'];
     $status = trim($_POST['status']);
     
+    // Validate status value and booking ID
     if ($booking_id > 0 && in_array($status, ['Pending', 'Confirmed', 'Cancelled'])) {
         // If cancelling, fetch current status to check if seats need to be released
         $fetch_stmt = $conn->prepare("SELECT status FROM bookings WHERE id = ?");
@@ -45,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['booking_id'], $_POST[
             releaseSeats($conn, $booking_id);
         }
         
+        // Update booking status
         $stmt = $conn->prepare("UPDATE bookings SET status = ? WHERE id = ?");
         $stmt->bind_param("si", $status, $booking_id);
         
@@ -63,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['booking_id'], $_POST[
     }
 }
 
+// Page metadata for admin header
 $pageTitle = 'Bookings - Admin';
 $pageActiveNav = 'bookings';
 $pageH1 = 'Bookings Management';

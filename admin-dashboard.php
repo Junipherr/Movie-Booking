@@ -1,15 +1,39 @@
 <?php 
+/**
+ * Admin Dashboard Page
+ * 
+ * Main admin overview page displaying system statistics and recent activity.
+ * Only accessible to users with admin role.
+ * 
+ * @route: admin-dashboard.php
+ * @method: GET
+ * @requires: includes/auth.php (require_admin), includes/config.php, includes/admin-header.php
+ * 
+ * @db-queries:
+ *   - SELECT COUNT(*) FROM movies
+ *   - SELECT COUNT(*) FROM bookings
+ *   - SELECT COUNT(*) FROM users
+ *   - SELECT COALESCE(SUM(price), 0) FROM bookings WHERE DATE(created_at) = CURDATE()
+ *   - SELECT b.*, u.name as user_name FROM bookings b LEFT JOIN users u ON b.user_id = u.id ORDER BY b.created_at DESC LIMIT 5
+ * @displays: Stats cards (movies, bookings, users, revenue), Recent bookings table, Quick actions
+ * @navigation: Sidebar links to Movies, Bookings, Logout
+ * 
+ * @see includes/auth.php:require_admin()
+ * @see admin-movies.php (manage movies)
+ * @see admin-bookings.php (manage bookings)
+ */
+
 require_once 'includes/auth.php';
 require_once 'includes/config.php';
 require_admin(); 
 
-// Fetch dashboard statistics
+// Fetch dashboard statistics from database
 $totalMovies = (int)$conn->query("SELECT COUNT(*) FROM movies")->fetch_row()[0];
 $totalBookings = (int)$conn->query("SELECT COUNT(*) FROM bookings")->fetch_row()[0];
 $totalUsers = (int)$conn->query("SELECT COUNT(*) FROM users")->fetch_row()[0];
 $revenueToday = $conn->query("SELECT COALESCE(SUM(price), 0) FROM bookings WHERE DATE(created_at) = CURDATE()")->fetch_row()[0];
 
-// Fetch recent bookings
+// Fetch recent bookings for activity display
 $recentBookings = [];
 $result = $conn->query("
     SELECT b.*, u.name as user_name 
@@ -22,6 +46,7 @@ while ($row = $result->fetch_assoc()) {
     $recentBookings[] = $row;
 }
 
+// Page metadata for admin header
 $pageTitle = 'Admin Dashboard - Movie Booking';
 $pageActiveNav = 'dashboard';
 $pageH1 = 'Dashboard';

@@ -1,1 +1,0 @@
-ALTER TABLE `bookings` MODIFY COLUMN `seats` VARCHAR(255) NOT NULL DEFAULT '1' AFTER `theater`;

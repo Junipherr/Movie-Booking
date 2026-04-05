@@ -1,9 +1,25 @@
 <?php
+/**
+ * Admin Dashboard Header Component
+ * 
+ * Common HTML header with sidebar navigation for admin pages.
+ * Includes Tailwind CSS setup and admin-specific UI components.
+ * 
+ * Required before use:
+ * - $pageTitle: Page title for browser tab
+ * - $pageActiveNav: Active navigation item for highlighting
+ * - $pageH1: Main page heading text
+ * 
+ * @requires: includes/auth.php (session check)
+ * @used-by: admin-dashboard.php, admin-movies.php, admin-bookings.php
+ * 
+ * @see includes/public-header.php (public pages header)
+ * @see includes/admin-footer.php (complementary footer)
+ */
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-// Shared admin header: Tailwind + sidebar + topbar + JS
-// Usage: include 'includes/admin-header.php'; then set $pageTitle, $pageActiveNav, $pageH1, $pageSubtitle
 $adminLoggedIn = isset($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>

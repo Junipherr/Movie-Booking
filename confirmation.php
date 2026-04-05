@@ -1,4 +1,23 @@
 <?php 
+/**
+ * Booking Confirmation Page
+ * 
+ * Displays successful booking confirmation with ticket details.
+ * Allows users to download their ticket as PDF.
+ * 
+ * @route: confirmation.php?booking_id={id} or confirmation.php (latest booking)
+ * @method: GET
+ * @requires: includes/auth.php, includes/config.php, includes/public-header.php
+ * 
+ * @query-param: booking_id (int, optional) - Specific booking to display
+ * @db-query: SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.id = ? AND b.user_id = ?
+ * @displays: Movie poster, title, date, time, theater, seats, price, booking ID
+ * @js-features: html2canvas + jsPDF for ticket PDF download
+ * 
+ * @see payment.php (redirects here on successful payment)
+ * @see my-bookings.php (lists all user bookings including this one)
+ */
+
 require_once 'includes/auth.php';
 require_user(); 
 require_once 'includes/config.php';
@@ -6,6 +25,7 @@ require_once 'includes/config.php';
 $booking = null;
 $error = '';
 
+// Try to fetch specific booking if booking_id provided in URL
 if (isset($_GET['booking_id'])) {
     $booking_id = (int)$_GET['booking_id'];
     $user_id = $_SESSION['user_id'];
@@ -21,6 +41,7 @@ if (isset($_GET['booking_id'])) {
     }
 } 
 
+// If no booking ID provided, fetch the user's most recent booking
 if (!$booking && isset($_SESSION['user_id'])) {
     $stmt = $conn->prepare("SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.user_id = ? ORDER BY b.created_at DESC LIMIT 1");
     $stmt->bind_param("i", $_SESSION['user_id']);
@@ -31,6 +52,7 @@ if (!$booking && isset($_SESSION['user_id'])) {
 
 $conn->close();
 
+// Set page metadata and include header
 $pageTitle = 'Booking Confirmed - Movie Booking';
 $activePage = '';
 include 'includes/public-header.php';

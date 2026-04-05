@@ -1,20 +1,46 @@
 <?php 
+/**
+ * Booking Page - Seat Selection
+ * 
+ * Interactive seat selection page for booking movie tickets.
+ * Users select theater, date, time, and seats before proceeding to payment.
+ * 
+ * @route: booking.php?movie_id={id}
+ * @method: GET (display), POST via bookings.php (form submission)
+ * @requires: includes/auth.php, includes/config.php, includes/public-header.php
+ * 
+ * @query-param: movie_id (int) - ID of the movie to book
+ * @db-queries: 
+ *   - SELECT * FROM movies WHERE id = ?
+ *   - SELECT DISTINCT theater, date, time FROM showtimes WHERE movie_id = ?
+ * @displays: Movie summary, Theater/Date/Time selectors, Seat map, Price calculation
+ * @form-submits-to: bookings.php (POST with movie_id, date, time, theater, selectedSeats)
+ * @requires-js: booking.js (seat selection interactivity)
+ * 
+ * @see movie-details.php (links to this page with movie_id)
+ * @see bookings.php (processes form submission, validates seats)
+ * @see payment.php (next step after seat selection)
+ */
+
 require_once 'includes/auth.php';
 require_user(); 
 require_once 'includes/config.php';
 
+// Get movie ID from URL, default to 0 if not provided
 $movie_id = isset($_GET['movie_id']) ? (int)$_GET['movie_id'] : 0;
 $movie = null;
 $theaters = $dates = $times = [];
 
+// Fetch movie details if valid ID
 if ($movie_id > 0) {
+    // Get movie info
     $stmt = $conn->prepare("SELECT * FROM movies WHERE id = ?");
     $stmt->bind_param("i", $movie_id);
     $stmt->execute();
     $movie = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    // Get all showtimes for this movie
+    // Get all available showtimes for this movie
     $showtimes = [];
     $stmt = $conn->prepare("SELECT DISTINCT theater, date, time FROM showtimes WHERE movie_id = ? ORDER BY theater, date, time");
     $stmt->bind_param("i", $movie_id);
@@ -22,12 +48,15 @@ if ($movie_id > 0) {
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
         $showtimes[] = $row;
+        // Build arrays for dropdown options
         if (!in_array($row['theater'], $theaters)) $theaters[] = $row['theater'];
         if (!in_array($row['date'], $dates)) $dates[] = $row['date'];
         if (!in_array($row['time'], $times)) $times[] = $row['time'];
     }
     $stmt->close();
 }
+
+// Close database connection
 $conn->close();
 ?>
 <?php 

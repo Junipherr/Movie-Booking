@@ -1,6 +1,34 @@
-// Sample data for Movie Booking UI (frontend only)
-// Movies categorized by genre
+/**
+ * Sample Data for Movie Booking System
+ * 
+ * Static reference data used for UI demonstration and fallback content.
+ * Note: This file is NOT connected to the database - actual data comes from PHP APIs.
+ * 
+ * This file provides:
+ * - Sample movie data organized by genre
+ * - Sample showtime slots
+ * - Sample theater names
+ * - Sample booking records (for admin UI demo)
+ * - Sample user records (for admin UI demo)
+ * 
+ * @note: These are placeholder samples for frontend UI demonstration.
+ *        The actual movie/showtime/booking data is fetched from:
+ *        - movies table via admin-movies.php
+ *        - showtimes table via get-showtimes.php
+ *        - bookings table via admin-bookings.php
+ *        - users table via login/registration
+ * 
+ * @used-by: admin-header.php:27 (script include for admin pages)
+ * @see get-showtimes.php (real showtimes API)
+ * @see get-seats-fixed.php (real seats API)
+ * @see admin-movies.php (real movies CRUD)
+ * @see admin-bookings.php (real bookings management)
+ */
+
+// Sample movies data - organized by genre for category display
+// These are hardcoded demo values; actual movies come from database
 const movies = {
+  // Action genre movies
   action: [
     {
       id: 1,
@@ -27,6 +55,7 @@ const movies = {
       duration: "163 min"
     }
   ],
+  // Comedy genre movies
   comedy: [
     {
       id: 4,
@@ -45,6 +74,7 @@ const movies = {
       duration: "92 min"
     }
   ],
+  // Drama genre movies
   drama: [
     {
       id: 6,
@@ -65,20 +95,23 @@ const movies = {
   ]
 };
 
-// Sample showtimes
+// Sample showtime slots - template for available viewing times
+// In production, showtimes come from showtimes table via get-showtimes.php
 const showtimes = ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM', '10:00 PM'];
 
-// Sample theaters
+// Sample theater names - corresponds to theaters in showtimes table
 const theaters = ['Screen 1', 'Screen 2', 'IMAX', 'VIP'];
 
-// Sample bookings for admin
+// Sample bookings - demo data for admin booking management table
+// In production, bookings come from bookings table via admin-bookings.php
 const bookings = [
   { id: 1, user: 'John Doe', movie: 'Avengers: Endgame', date: '2024-01-15', time: '7:00 PM', theater: 'Screen 1', status: 'Confirmed' },
   { id: 2, user: 'Jane Smith', movie: 'Barbie', date: '2024-01-16', time: '4:00 PM', theater: 'Screen 2', status: 'Confirmed' },
   { id: 3, user: 'Bob Johnson', movie: 'Oppenheimer', date: '2024-01-17', time: '10:00 PM', theater: 'IMAX', status: 'Pending' }
 ];
 
-// Sample users for admin
+// Sample users - demo data for admin user management (if implemented)
+// In production, users come from users table via database
 const users = [
   { id: 1, name: 'John Doe', email: 'john@example.com' },
   { id: 2, name: 'Jane Smith', email: 'jane@example.com' },

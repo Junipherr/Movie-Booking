@@ -1,14 +1,43 @@
 <?php 
+/**
+ * Payment Page
+ * 
+ * Displays booking summary and processes payment for confirmed bookings.
+ * Supports both new booking (from session) and existing pending bookings.
+ * 
+ * @route: payment.php or payment.php?booking_id={id}
+ * @method: GET (display), POST (process payment)
+ * @requires: includes/auth.php, includes/config.php, includes/seat-management.php
+ * 
+ * @query-param: booking_id (int, optional) - For existing pending bookings
+ * @session-reads: pending_booking (new booking data from bookings.php)
+ * @post-fields: action (pay|cancel), card_number, expiry, cvv
+ * @db-ops: 
+ *   - INSERT into bookings table (new booking)
+ *   - UPDATE bookings set status='Paid' (existing pending)
+ * @redirects: 
+ *   - Payment success → confirmation.php?booking_id=...
+ *   - Payment cancel → index.php
+ * 
+ * @note: Demo mode - any card number works, no real payment processing
+ * 
+ * @see bookings.php (creates pending_booking in session)
+ * @see confirmation.php (displays after successful payment)
+ * @see cancel-booking.php (user cancellation handler)
+ */
+
 require_once 'includes/auth.php';
 require_user(); 
 require_once 'includes/config.php';
 require_once 'includes/seat-management.php';
 
+// Get booking ID from URL if provided
 $booking_id = isset($_GET['booking_id']) ? (int)$_GET['booking_id'] : 0;
 $booking = null;
 $error = '';
 $success = '';
 
+// For existing booking (pending payment), fetch from database
 if ($booking_id > 0) {
     $user_id = $_SESSION['user_id'];
     $stmt = $conn->prepare("SELECT b.*, m.poster_url FROM bookings b LEFT JOIN movies m ON b.movie_id = m.id WHERE b.id = ? AND b.user_id = ? AND status = 'Pending'");
@@ -20,8 +49,12 @@ if ($booking_id > 0) {
     if (!$booking) {
         $error = 'Booking not found, expired, or already processed.';
     }
-} elseif (isset($_SESSION['pending_booking'])) {
+} 
+// For new booking from session (created by bookings.php)
+elseif (isset($_SESSION['pending_booking'])) {
     $pending = $_SESSION['pending_booking'];
+    
+    // Get movie details for display
     $stmt = $conn->prepare("SELECT title FROM movies WHERE id = ?");
     $stmt->bind_param("i", $pending['movie_id']);
     $stmt->execute();
@@ -29,6 +62,7 @@ if ($booking_id > 0) {
     $stmt->close();
     
     if ($movie) {
+        // Build booking display data from session
         $booking = [
             'id' => 0,
             'movie_id' => $pending['movie_id'],
@@ -46,13 +80,16 @@ if ($booking_id > 0) {
     }
 } 
 
-// Handle payment
+// Handle payment form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $user_id = $_SESSION['user_id'];
+    
+    // Process payment - mark existing pending booking as Paid
     if ($_POST['action'] === 'pay') {
         $pending = $_SESSION['pending_booking'] ?? null;
         
         if ($booking_id > 0) {
+            // Update existing pending booking
             $stmt = $conn->prepare("UPDATE bookings SET status = 'Paid' WHERE id = ? AND user_id = ? AND status = 'Pending'");
             $stmt->bind_param("ii", $booking_id, $user_id);
             if ($stmt->execute() && $stmt->affected_rows > 0) {
@@ -63,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $error = 'Payment failed. Please try again.';
             }
         } elseif ($pending) {
+            // Insert new booking record with Paid status
             $stmt = $conn->prepare('
                 INSERT INTO bookings 
                 (user_id, movie_id, movie_title, date, time, theater, seats, price, status, created_at)
@@ -83,8 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if ($stmt->execute()) {
                 $new_booking_id = $conn->insert_id;
                 $stmt->close();
+                
+                // Mark seats as occupied in database
                 markSeatsOccupied($conn, $new_booking_id, $pending['movie_id'], $pending['theater'], $pending['seats'], $pending['date'], $pending['time']);
+                
+                // Clear pending booking from session
                 unset($_SESSION['pending_booking']);
+                
+                // Redirect to confirmation page
                 header("Location: confirmation.php?booking_id=" . $new_booking_id);
                 exit;
             } else {
@@ -93,7 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } else {
             $error = 'No pending booking found.';
         }
-    } elseif ($_POST['action'] === 'cancel') {
+    } 
+    // Cancel payment - release seats and remove pending booking
+    elseif ($_POST['action'] === 'cancel') {
         if ($booking_id > 0) {
             releaseSeats($conn, $booking_id);
             $stmt = $conn->prepare("DELETE FROM bookings WHERE id = ? AND user_id = ? AND status = 'Pending'");
@@ -107,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
+// Set page metadata and include header
 $pageTitle = 'Payment - Movie Booking';
 $activePage = '';
 include 'includes/public-header.php';

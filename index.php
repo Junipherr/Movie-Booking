@@ -1,8 +1,26 @@
 <?php 
+/**
+ * Homepage - Movie Listing
+ * 
+ * Main landing page displaying all available movies grouped by genre.
+ * Shows featured movie in hero section and all movies in categorized rows.
+ * 
+ * @route: index.php (home page)
+ * @requires: includes/auth.php, includes/config.php, includes/public-header.php, includes/public-footer.php
+ * 
+ * @db-queries: SELECT * FROM movies ORDER BY created_at DESC
+ * 
+ * @displays: Hero section with featured movie, Genre-based movie rows
+ * @actions: Click movie card → movie-details.php?id=...
+ * 
+ * @see movie-details.php (movie detail page)
+ * @see login.php (for unauthenticated users wanting to book)
+ */
+
 require_once 'includes/auth.php';
 require_once 'includes/config.php';
 
-// Fetch all movies
+// Fetch all movies from database, ordered by creation date (newest first)
 $stmt = $conn->prepare("SELECT * FROM movies ORDER BY created_at DESC");
 $stmt->execute();
 $result = $stmt->get_result();
@@ -13,7 +31,7 @@ while ($row = $result->fetch_assoc()) {
 $stmt->close();
 $conn->close();
 
-// Group movies by genre (lowercase key for consistency)
+// Group movies by genre (lowercase key for consistent array indexing)
 $genres = [];
 foreach ($movies as $movie) {
     $genre_key = strtolower($movie['genre']);
@@ -23,7 +41,7 @@ foreach ($movies as $movie) {
     $genres[$genre_key][] = $movie;
 }
 
-// Featured movie for hero (first one)
+// Featured movie for hero section (first movie in list)
 $featured = !empty($movies) ? $movies[0] : null;
 ?>
 <?php 
@@ -32,7 +50,7 @@ $activePage = 'home';
 include 'includes/public-header.php';
 ?>
 
-    <!-- Netflix Hero Section -->
+    <!-- CineMovie Hero Section -->
     <?php if ($featured): ?>
     <section class="relative h-[85vh] min-h-[500px] overflow-hidden mt-[-4rem]">
         <!-- Background Image with Overlay -->
@@ -64,7 +82,7 @@ include 'includes/public-header.php';
     </section>
     <?php endif; ?>
 
-    <!-- Movies by Genre - Netflix Style -->
+    <!-- Movies by Genre - CineMovie Style -->
     <section class="relative z-10 pb-16 -mt-8">
         <div class="max-w-7xl mx-auto px-4 md:px-8">
             

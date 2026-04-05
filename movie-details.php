@@ -1,10 +1,33 @@
 <?php 
+/**
+ * Movie Details Page
+ * 
+ * Displays detailed information about a specific movie including
+ * poster, description, genre, duration, and booking options.
+ * 
+ * @route: movie-details.php?id={movie_id}
+ * @method: GET
+ * @requires: includes/config.php, includes/auth.php, includes/public-header.php
+ * 
+ * @query-param: id (int) - Movie ID from database
+ * @db-query: SELECT * FROM movies WHERE id = ?
+ * @displays: Movie poster, title, genre, duration, description, booking button
+ * @actions: 
+ *   - Logged in user → booking.php?movie_id=...
+ *   - Guest user → login.php?return=...
+ * 
+ * @see index.php (movie list, links to this page)
+ * @see booking.php (booking flow after clicking "Book Now")
+ */
+
 require_once 'includes/config.php';
 require_once 'includes/auth.php';
 
+// Get movie ID from URL parameter, default to 0 if not set
 $movie_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $movie = null;
 
+// Fetch movie details from database if valid ID provided
 if ($movie_id > 0) {
     $stmt = $conn->prepare("SELECT * FROM movies WHERE id = ?");
     $stmt->bind_param("i", $movie_id);
@@ -14,11 +37,13 @@ if ($movie_id > 0) {
     $stmt->close();
 }
 
+// Redirect to homepage if movie not found
 if (!$movie) {
     header("Location: index.php");
     exit;
 }
 
+// Check if user is logged in for conditional display
 $isLoggedIn = isset($_SESSION['user_id']);
 ?>
 <?php 

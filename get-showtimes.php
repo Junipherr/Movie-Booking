@@ -1,93 +1,85 @@
 <?php
-// API endpoint to get available showtimes for a movie
+/**
+ * Showtimes API Endpoint
+ * 
+ * Returns available dates and times for a specific movie and theater.
+ * Called by booking.js via AJAX when user selects theater/date.
+ * 
+ * @route: get-showtimes.php?movie_id={id}&theater={name}[&date={date}]
+ * @method: GET
+ * @requires: includes/config.php
+ * 
+ * @query-params: 
+ *   - movie_id (int): ID of the movie (required)
+ *   - theater (string): Theater name to get dates/times for (required)
+ *   - date (string): Specific date to get times for (optional)
+ * 
+ * @returns: JSON object with success, dates array, and/or times array
+ * 
+ * @used-by: booking.js (seat selection page)
+ * @see booking.php (booking page with seat selection)
+ */
+
+// Include database configuration
 require_once 'includes/config.php';
 
+// Get parameters from URL
+$movie_id = isset($_GET['movie_id']) ? (int)$_GET['movie_id'] : 0;
+$theater = isset($_GET['theater']) ? trim($_GET['theater']) : '';
+$date = isset($_GET['date']) ? trim($_GET['date']) : '';
+
+// Set content type to JSON
 header('Content-Type: application/json');
 
-$movie_id = isset($_GET['movie_id']) ? (int)$_GET['movie_id'] : 0;
-$theater_filter = isset($_GET['theater']) ? $_GET['theater'] : null;
-$date_filter = isset($_GET['date']) ? $_GET['date'] : null;
-
-if ($movie_id <= 0) {
-    echo json_encode(['success' => false, 'error' => 'Invalid movie_id']);
+// Validate required parameters
+if ($movie_id <= 0 || empty($theater)) {
+    echo json_encode(['success' => false, 'dates' => [], 'times' => []]);
     exit;
 }
 
-try {
-    // Build query based on filters
-    $where_conditions = ['movie_id = ?'];
-    $params = [$movie_id];
-    $types = 'i';
-    
-    if ($theater_filter) {
-        $where_conditions[] = 'theater = ?';
-        $params[] = $theater_filter;
-        $types .= 's';
-    }
-    
-    if ($date_filter) {
-        $where_conditions[] = 'date = ?';
-        $params[] = $date_filter;
-        $types .= 's';
-    }
-    
-    $where_clause = implode(' AND ', $where_conditions);
-    
-    // Fetch distinct dates and times for this movie with filters
+// If date is provided, return times for that specific date
+if (!empty($date)) {
     $stmt = $conn->prepare("
-        SELECT DISTINCT date, time, theater
-        FROM showtimes
-        WHERE $where_clause
-        ORDER BY date ASC, time ASC
+        SELECT DISTINCT time 
+        FROM showtimes 
+        WHERE movie_id = ? AND theater = ? AND date = ?
+        ORDER BY time ASC
     ");
-    
-    if (!$stmt) {
-        throw new Exception('Database error: ' . $conn->error);
-    }
-    
-    $stmt->bind_param($types, ...$params);
+    $stmt->bind_param('iss', $movie_id, $theater, $date);
     $stmt->execute();
     $result = $stmt->get_result();
-    
-    $dates = [];
+
     $times = [];
-    $theaters = [];
-    
     while ($row = $result->fetch_assoc()) {
-        if (!in_array($row['date'], $dates)) {
-            $dates[] = $row['date'];
-        }
-        if (!in_array($row['time'], $times)) {
-            $times[] = $row['time'];
-        }
-        if (!in_array($row['theater'], $theaters)) {
-            $theaters[] = $row['theater'];
-        }
+        $times[] = $row['time'];
     }
-    
+
     $stmt->close();
-    
-    // If no showtimes found, generate default ones (only if no filters applied)
-    if (empty($dates) && !$theater_filter && !$date_filter) {
-        $dates = [];
-        for ($i = 0; $i < 7; $i++) {
-            $dates[] = date('Y-m-d', strtotime("+$i days"));
-        }
-        $times = ['10:00:00', '13:00:00', '16:00:00', '19:00:00', '22:00:00'];
-        $theaters = ['Screen 1', 'Screen 2', 'IMAX', 'VIP'];
-    }
-    
-    echo json_encode([
-        'success' => true,
-        'movie_id' => $movie_id,
-        'dates' => $dates,
-        'times' => $times,
-        'theaters' => $theaters
-    ]);
-    
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    $conn->close();
+
+    echo json_encode(['success' => true, 'dates' => [], 'times' => $times]);
+    exit;
 }
 
+// Otherwise, return all available dates for the theater
+$stmt = $conn->prepare("
+    SELECT DISTINCT date 
+    FROM showtimes 
+    WHERE movie_id = ? AND theater = ?
+    ORDER BY date ASC
+");
+$stmt->bind_param('is', $movie_id, $theater);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$dates = [];
+while ($row = $result->fetch_assoc()) {
+    $dates[] = $row['date'];
+}
+
+$stmt->close();
 $conn->close();
+
+// Return JSON object matching what booking.js expects
+echo json_encode(['success' => true, 'dates' => $dates, 'times' => []]);
 ?>

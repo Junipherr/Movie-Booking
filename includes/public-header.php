@@ -1,6 +1,23 @@
 <?php
-// Common public header with navbar
-// Usage: After requires/config/auth, set $pageTitle = '...'; $activePage = 'home|bookings|my-bookings'; then include
+/**
+ * Public Page Header Component
+ * 
+ * Common HTML header with navigation bar for all public-facing pages.
+ * Provides user authentication status and navigation menu.
+ * 
+ * Required before use:
+ * - $pageTitle: Page title to display in browser tab
+ * - $activePage: Current page identifier for menu highlighting (optional)
+ * 
+ * @requires: includes/config.php (database), includes/auth.php (session)
+ * 
+ * @used-by: index.php, login.php, register.php, movie-details.php, 
+ *           booking.php, payment.php, confirmation.php, my-bookings.php
+ * 
+ * @see includes/public-footer.php (complementary footer)
+ * @see includes/admin-header.php (admin dashboard header)
+ */
+
 $isLoggedIn = isset($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
@@ -35,12 +52,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
 </head>
 <body class="bg-neutral-950 min-h-screen text-white flex flex-col">
     <main class="flex-grow">
-    <!-- Netflix Navbar -->
+    <!-- CineMovie Navbar -->
     <nav class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/90 to-transparent transition-all duration-300" id="navbar">
         <div class="max-w-7xl mx-auto px-4 md:px-8">
             <div class="flex items-center justify-between h-16 md:h-20">
                 <div class="flex items-center gap-8">
-                    <a href="index.php" class="text-netflix-red text-2xl md:text-3xl font-bold tracking-tight">NETFLIX<span class="text-white font-light">MOVIES</span></a>
+                    <a href="index.php" class="text-netflix-red text-2xl md:text-3xl font-bold tracking-tight">CineMovie</a>
                     <div class="hidden md:flex items-center gap-6">
                         <a href="index.php" class="text-sm <?php echo ($activePage ?? '') === 'home' ? 'text-white font-semibold' : 'text-gray-300 hover:text-white'; ?> transition-colors">Home</a>
                         <?php if ($isLoggedIn): ?>

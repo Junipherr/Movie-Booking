@@ -1,21 +1,63 @@
 <?php
+/**
+ * Admin Movies Management Page
+ * 
+ * Provides CRUD operations for movies in the Movie Booking system.
+ * Supports AJAX-based add, edit, delete operations without page reload.
+ * Automatically creates seats and showtimes when a new movie is added.
+ * 
+ * @route: admin-movies.php (GET display, POST AJAX operations)
+ * @method: GET (display), POST (AJAX CRUD actions)
+ * @requires: includes/auth.php (require_admin), includes/config.php, includes/admin-header.php
+ * 
+ * @ajax-actions:
+ *   - list: Returns all movies as JSON
+ *   - add: Creates new movie with auto-generated seats/showtimes
+ *   - update: Updates existing movie details
+ *   - delete: Removes movie and associated seats/showtimes
+ * 
+ * @auto-generated: 
+ *   - Seats: 4 theaters × 10 rows × 12 seats = 480 seats per movie
+ *   - Showtimes: 7 days × 4 theaters × 2-3 random time slots per day
+ * 
+ * @db-tables: movies, seats, showtimes
+ * @form-fields: title, genre, duration, description, poster_url, poster_file (upload)
+ * 
+ * @see admin-dashboard.php (main dashboard with link to this page)
+ * @see admin-bookings.php (manage bookings)
+ */
+
 require_once 'includes/auth.php';
 require_once 'includes/config.php';
 
+/**
+ * JSON error response helper for AJAX operations
+ * 
+ * @param string $message Error message to return
+ * @param int $code HTTP response code
+ */
 function respondJsonError($message, $code = 401) {
     http_response_code($code);
     echo json_encode(['success' => false, 'error' => $message]);
     exit;
 }
 
+/**
+ * Handles poster image upload - accepts file upload or URL string
+ * 
+ * @return string|null Relative path to uploaded image or original URL, null if neither provided
+ * @used-by: AJAX add/update actions
+ */
 function handlePosterUpload() {
     $posterUrl = trim($_POST['poster_url'] ?? '');
 
+    // Handle file upload
     if (!empty($_FILES['poster_file']['name'])) {
         if ($_FILES['poster_file']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception('Poster upload failed with error code: ' . $_FILES['poster_file']['error']);
         }
 
+        // Validate image file types
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $info = pathinfo($_FILES['poster_file']['name']);
         $ext = strtolower($info['extension'] ?? '');
@@ -23,12 +65,13 @@ function handlePosterUpload() {
             throw new Exception('Poster image must be JPG, PNG, GIF or WEBP.');
         }
 
-        // Keep uploads inside this project folder for correct relative URLs
+        // Create uploads directory if it doesn't exist
         $uploadDir = __DIR__ . '/uploads';
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
 
+        // Generate unique filename and move uploaded file
         $filename = uniqid('poster_', true) . '.' . $ext;
         $target = $uploadDir . '/' . $filename;
         if (!move_uploaded_file($_FILES['poster_file']['tmp_name'], $target)) {
@@ -38,20 +81,29 @@ function handlePosterUpload() {
         return 'uploads/' . $filename;
     }
 
+    // Fall back to URL if no file uploaded
     if (!empty($posterUrl)) {
         return $posterUrl;
     }
 
     return null; // Allow movies without poster
-
 }
 
-// Function to automatically create seats for a new movie
+/**
+ * Automatically creates seats for a new movie in all theaters
+ * Creates 480 seats: 4 theaters × 10 rows (A-J) × 12 seats per row
+ * 
+ * @param mysqli $conn Database connection
+ * @param int $movie_id ID of the movie to create seats for
+ * @throws Exception If seat creation fails
+ * 
+ * @called-by: AJAX add action after successful movie insertion
+ */
 function createSeatsForMovie($conn, $movie_id) {
     $theaters = ['Screen 1', 'Screen 2', 'IMAX', 'VIP'];
     $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
     
-    // Prepare insert statement for batch inserts
+    // Prepare seat data array
     $seats_data = [];
     
     foreach ($theaters as $theater) {
@@ -86,7 +138,16 @@ function createSeatsForMovie($conn, $movie_id) {
     }
 }
 
-// Function to automatically create showtimes for a new movie (next 7 days)
+/**
+ * Automatically creates showtimes for a new movie (next 7 days)
+ * Generates 2-3 random time slots per theater per day for variety
+ * 
+ * @param mysqli $conn Database connection
+ * @param int $movie_id ID of the movie to create showtimes for
+ * @throws Exception If showtime creation fails
+ * 
+ * @called-by: AJAX add action after successful movie and seat creation
+ */
 function createShowtimesForMovie($conn, $movie_id) {
     $theaters = ['Screen 1', 'Screen 2', 'IMAX', 'VIP'];
     $times = ['10:00:00', '13:00:00', '16:00:00', '19:00:00', '22:00:00'];
@@ -122,7 +183,7 @@ function createShowtimesForMovie($conn, $movie_id) {
     }
 }
 
-// AJAX CRUD endpoints
+// AJAX CRUD endpoints - process POST requests with action parameter
 if (!empty($_REQUEST['action'])) {
     $isAdmin = isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
     if (!$isAdmin) {
@@ -133,6 +194,7 @@ if (!empty($_REQUEST['action'])) {
 
     try {
         switch ($action) {
+            // Return list of all movies as JSON
             case 'list':
                 $result = $conn->query('SELECT * FROM movies ORDER BY id DESC');
                 $movies = [];
@@ -142,6 +204,7 @@ if (!empty($_REQUEST['action'])) {
                 echo json_encode(['success' => true, 'movies' => $movies]);
                 break;
 
+            // Add new movie with auto-generated seats and showtimes
             case 'add':
                 $title = trim($_POST['title'] ?? '');
                 $genre = trim($_POST['genre'] ?? '');
@@ -154,6 +217,7 @@ if (!empty($_REQUEST['action'])) {
 
                 $poster_url = handlePosterUpload();
 
+                // Insert movie into database
                 $stmt = $conn->prepare('INSERT INTO movies (title, description, poster_url, genre, duration) VALUES (?, ?, ?, ?, ?)');
                 if (!$stmt) {
                     throw new Exception('Database error: ' . $conn->error);
@@ -188,6 +252,7 @@ if (!empty($_REQUEST['action'])) {
                 echo json_encode(['success' => true, 'movie' => $movie]);
                 break;
 
+            // Update existing movie details
             case 'update':
                 $id = intval($_POST['id'] ?? 0);
                 $title = trim($_POST['title'] ?? '');
@@ -236,6 +301,7 @@ if (!empty($_REQUEST['action'])) {
                 echo json_encode(['success' => true, 'movie' => $movie]);
                 break;
 
+            // Delete movie and all associated data (seats, showtimes)
             case 'delete':
                 $id = intval($_POST['id'] ?? 0);
                 if ($id <= 0) {
@@ -290,8 +356,10 @@ if (!empty($_REQUEST['action'])) {
     exit;
 }
 
+// Page requires admin authentication
 require_admin();
 
+// Set page metadata for admin header
 $pageTitle = 'Manage Movies - Admin';
 $pageActiveNav = 'movies';
 $pageH1 = 'Manage Movies';

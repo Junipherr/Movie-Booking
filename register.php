@@ -1,11 +1,30 @@
 <?php
-// Register handler - processes form POST
+/**
+ * Registration Page
+ * 
+ * New user registration page for the Movie Booking system.
+ * Validates input, checks for existing email, and creates new user record.
+ * 
+ * @route: register.php
+ * @method: POST (form submission), GET (display form)
+ * @requires: includes/config.php, includes/public-header.php
+ * 
+ * @form-fields: name, email, password, confirmPassword
+ * @validation: name (min 2 chars), email (valid format), password (min 6 chars), password match
+ * @db-inserts: new user record with hashed password
+ * @redirects: login.php (on success with 1.5s delay via JavaScript)
+ * 
+ * @see login.php (existing user login)
+ */
+
 $message = '';
 $message_type = '';
 
+// Process registration form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     include 'includes/config.php';
     
+    // Get and sanitize form inputs
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -13,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $errors = [];
     
-    // Validation
+    // Validate all fields
     if (empty($name) || strlen($name) < 2) {
         $errors[] = 'Name must be at least 2 characters.';
     }
@@ -27,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Passwords do not match.';
     }
     
+    // Check if email already exists in database
     if (empty($errors)) {
-        // Check if email exists
         $stmt = $conn->prepare('SELECT id FROM users WHERE email = ?');
         $stmt->bind_param('s', $email);
         $stmt->execute();
@@ -38,17 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
     }
     
+    // Insert new user if all validations pass
     if (empty($errors)) {
-        // Insert user
-$hashed_password = password_hash($password, PASSWORD_DEFAULT);
-$role = 'user';
-$stmt = $conn->prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
-$stmt->bind_param('ssss', $name, $email, $hashed_password, $role);
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $role = 'user';
+        $stmt = $conn->prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
+        $stmt->bind_param('ssss', $name, $email, $hashed_password, $role);
         
         if ($stmt->execute()) {
             $message = 'Registration successful! Redirecting to login...';
             $message_type = 'success';
-            // Redirect after 1s
+            // JavaScript redirect after 1.5 seconds
             echo '<script>setTimeout(() => { window.location.href = "login.php"; }, 1500);</script>';
         } else {
             $errors[] = 'Registration failed. Try again.';
@@ -56,6 +75,7 @@ $stmt->bind_param('ssss', $name, $email, $hashed_password, $role);
         $stmt->close();
     }
     
+    // Display validation errors
     if (!empty($errors)) {
         $message = implode(' ', $errors);
         $message_type = 'error';
@@ -63,6 +83,8 @@ $stmt->bind_param('ssss', $name, $email, $hashed_password, $role);
     
     $conn->close();
 }
+
+// Set page metadata and include header
 $pageTitle = 'Register - Movie Booking';
 $activePage = '';
 include 'includes/public-header.php';
@@ -73,7 +95,7 @@ include 'includes/public-header.php';
             <div class="bg-neutral-800 rounded-xl shadow-lg p-8 border border-neutral-700">
                 <div class="text-center mb-8">
                     <h1 class="text-3xl font-bold text-white mb-2">Create Account</h1>
-                    <p class="text-gray-400">Join Netflix Movies</p>
+                    <p class="text-gray-400">Join CineMovie</p>
                 </div>
                 
                 <?php if ($message): ?>
