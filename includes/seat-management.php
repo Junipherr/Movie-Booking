@@ -2,7 +2,7 @@
 // Helper function to mark selected seats as occupied for a booking
 require_once 'includes/config.php';
 
-function markSeatsOccupied($conn, $booking_id, $movie_id, $theater, $selected_seats) {
+function markSeatsOccupied($conn, $booking_id, $movie_id, $theater, $selected_seats, $date, $time) {
     if (empty($selected_seats)) {
         return false;
     }
@@ -14,11 +14,11 @@ function markSeatsOccupied($conn, $booking_id, $movie_id, $theater, $selected_se
     }
     
     try {
-        // Update each seat to mark as occupied
+        // Update each seat to mark as occupied (include date and time filtering)
         $stmt = $conn->prepare('
             UPDATE seats 
             SET occupied = 1, booking_id = ? 
-            WHERE movie_id = ? AND theater = ? AND seat_number = ?
+            WHERE movie_id = ? AND theater = ? AND seat_number = ? AND date = ? AND time = ?
         ');
         
         if (!$stmt) {
@@ -26,7 +26,7 @@ function markSeatsOccupied($conn, $booking_id, $movie_id, $theater, $selected_se
         }
         
         foreach ($seats_array as $seat_number) {
-            $stmt->bind_param('iiss', $booking_id, $movie_id, $theater, $seat_number);
+            $stmt->bind_param('iissss', $booking_id, $movie_id, $theater, $seat_number, $date, $time);
             if (!$stmt->execute()) {
                 throw new Exception('Failed to mark seat ' . $seat_number . ' as occupied');
             }

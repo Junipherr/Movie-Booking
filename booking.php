@@ -5,6 +5,7 @@ require_once 'includes/config.php';
 
 $movie_id = isset($_GET['movie_id']) ? (int)$_GET['movie_id'] : 0;
 $movie = null;
+$theaters = $dates = $times = [];
 
 if ($movie_id > 0) {
     $stmt = $conn->prepare("SELECT * FROM movies WHERE id = ?");
@@ -12,8 +13,21 @@ if ($movie_id > 0) {
     $stmt->execute();
     $movie = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-}
 
+    // Get all showtimes for this movie
+    $showtimes = [];
+    $stmt = $conn->prepare("SELECT DISTINCT theater, date, time FROM showtimes WHERE movie_id = ? ORDER BY theater, date, time");
+    $stmt->bind_param("i", $movie_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $showtimes[] = $row;
+        if (!in_array($row['theater'], $theaters)) $theaters[] = $row['theater'];
+        if (!in_array($row['date'], $dates)) $dates[] = $row['date'];
+        if (!in_array($row['time'], $times)) $times[] = $row['time'];
+    }
+    $stmt->close();
+}
 $conn->close();
 ?>
 <?php 
@@ -25,7 +39,7 @@ include 'includes/public-header.php';
     * { font-family: 'Inter', sans-serif; }
 </style>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-24">
         <?php if (!$movie): ?>
         <div class="text-center">
             <h1 class="text-3xl font-bold text-gray-900 mb-4">Movie Not Found</h1>
@@ -64,34 +78,44 @@ include 'includes/public-header.php';
                         <div class="grid gap-4 sm:grid-cols-3">
                             <label class="block">
                                 <span class="text-sm font-medium text-gray-700">Theater</span>
-                                <select id="showTheaterSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required>
+                                <select name="theater" id="showTheaterSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required>
                                     <option value="">Select theater</option>
-                                    <option value="Screen 1">Screen 1</option>
-                                    <option value="Screen 2">Screen 2</option>
-                                    <option value="IMAX">IMAX</option>
-                                    <option value="VIP">VIP</option>
+                                    <?php foreach ($theaters as $theater): ?>
+                                        <option value="<?php echo htmlspecialchars($theater); ?>"><?php echo htmlspecialchars($theater); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </label>
                             <label class="block">
                                 <span class="text-sm font-medium text-gray-700">Date</span>
-                                <select id="showDateSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required disabled>
-                                    <option value="">Select theater first</option>
+                                <select name="date" id="showDateSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required>
+                                    <option value="">Select date</option>
+                                    <?php foreach ($dates as $date): ?>
+                                        <option value="<?php echo htmlspecialchars($date); ?>"><?php echo date('D, M j, Y', strtotime($date)); ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </label>
                             <label class="block">
                                 <span class="text-sm font-medium text-gray-700">Time</span>
-                                <select id="showTimeSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required disabled>
-                                    <option value="">Select date first</option>
-                                    <option value="10:00">10:00 AM</option>
-                                    <option value="13:00">1:00 PM</option>
-                                    <option value="16:00">4:00 PM</option>
-                                    <option value="19:00">7:00 PM</option>
-                                    <option value="22:00">10:00 PM</option>
+                                <select name="time" id="showTimeSelect" class="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl bg-white" required>
+                                    <option value="">Select time</option>
+                                    <?php foreach ($times as $time): ?>
+                                        <option value="<?php echo htmlspecialchars($time); ?>">
+                                            <?php 
+                                            $h = (int)substr($time,0,2);
+                                            if ($h === 10) echo '10:00 AM';
+                                            elseif ($h === 13) echo '1:00 PM';
+                                            elseif ($h === 16) echo '4:00 PM';
+                                            elseif ($h === 19) echo '7:00 PM';
+                                            elseif ($h === 22) echo '10:00 PM';
+                                            else echo htmlspecialchars($time);
+                                            ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </label>
                         </div>
-                        <button type="button" id="loadSeatsBtn" class="mt-4 w-full bg-primary hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">Load seats</button>
-                        <p id="showSelectionMessage" class="mt-3 text-sm text-gray-600">Choose theater, date, and time, then click Load seats.</p>
+<button type="button" id="loadSeatsBtn" class="mt-4 w-full bg-primary hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 opacity-50" disabled>Load Seats (Select Theater First)</button>
+<p id="showSelectionMessage" class="mt-3 text-sm text-gray-600 font-semibold">🎯 Select theater → Click "Load Seats" → Pick seats!</p>
                     </div>
                     
                     <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-8 border border-white/50">
@@ -121,8 +145,24 @@ include 'includes/public-header.php';
                         </div>
 
                         <!-- Seat Map -->
-                        <div id="seatMap" class="mb-8 p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50/50 to-white/70 rounded-3xl border-2 border-gray-200/50 shadow-inner w-full max-w-4xl sm:max-w-5xl lg:max-w-6xl mx-auto overflow-x-auto pb-4"></div>
-                        <!-- Seats will be generated by JS -->
+                        <div id="seatMap" class="mb-8 p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50/50 to-white/70 rounded-3xl border-2 border-gray-200/50 shadow-inner w-full max-w-4xl sm:max-w-5xl lg:max-w-6xl mx-auto overflow-x-auto pb-4">
+                        <?php
+                        // PHP fallback seat map: 10 rows (A-J), 12 seats per row
+                        $rows = range('A', 'J');
+                        $seatsPerRow = 12;
+                        echo '<div class="text-gray-400 text-xs mb-2">(Fallback seat map: for best experience, enable JavaScript)</div>';
+                        foreach ($rows as $row) {
+                            echo '<div class="flex items-center justify-center mb-3 sm:mb-4 gap-0.5 sm:gap-1">';
+                            echo '<span class="w-9 sm:w-10 md:w-12 text-right font-bold text-sm sm:text-base md:text-lg mr-1 sm:mr-2 md:mr-4 whitespace-nowrap flex-shrink-0">' . $row . '</span>';
+                            for ($seat = 1; $seat <= $seatsPerRow; $seat++) {
+                                $seatId = $row . $seat;
+                                echo '<div class="seat w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 min-w-[2.5rem] min-h-[2.5rem] rounded-lg border-4 flex items-center justify-center font-bold text-xs sm:text-sm shadow-md bg-green-200 border-green-300 text-gray-400 cursor-not-allowed opacity-60" title="Enable JavaScript to select seats">' . $seat . '</div>';
+                            }
+                            echo '</div>';
+                        }
+                        ?>
+                        </div>
+                        <!-- Seats will be generated by JS if enabled -->
                     </div>
 
                         <!-- Selection Summary -->
@@ -230,44 +270,28 @@ include 'includes/public-header.php';
         function setupCascadingSelectors() {
             showDebug('Setting up cascading selectors...');
 
-            // Theater change handler
+// Theater change handler - SIMPLIFIED
             if (showTheaterSelect) {
-                showDebug('Adding theater change listener');
                 showTheaterSelect.addEventListener('change', function() {
                     const selectedTheater = this.value;
-                    showDebug(`Theater change event fired: ${selectedTheater}`);
-
+                    showDebug(`Theater selected: ${selectedTheater}`);
+                    selectedShow.theater = selectedTheater;
+                    document.getElementById('theaterInput').value = selectedTheater;
+                    
                     if (selectedTheater) {
-                        if (showDateSelect) {
-                            showDateSelect.innerHTML = '<option>Loading dates...</option>';
-                            showDateSelect.disabled = false;
-                            showDateSelect.removeAttribute('disabled');
-                        }
-                        if (showTimeSelect) {
-                            showTimeSelect.innerHTML = '<option value="">Select date first</option>';
-                            showTimeSelect.disabled = true;
-                        }
-                        showDebug(`Calling populateDatesForTheater with: ${selectedTheater}`);
+                        // **FIX 1: Auto-load dates when theater selected**
                         populateDatesForTheater(selectedTheater);
+                        showSelectionMessage.textContent = `Theater "${selectedTheater}" selected. Choose date/time to load seats.`;
+                        loadSeatsBtn.disabled = true; // Require date/time
+                        loadSeatsBtn.classList.add('opacity-50');
                     } else {
-                        // Reset date and time selectors
-                        if (showDateSelect) {
-                            showDateSelect.innerHTML = '<option value="">Select theater first</option>';
-                            showDateSelect.disabled = true;
-                        }
-                        if (showTimeSelect) {
-                            showTimeSelect.innerHTML = '<option value="">Select date first</option>';
-                            showTimeSelect.disabled = true;
-                        }
-                        selectedShow.theater = '';
-                        selectedShow.date = '';
-                        selectedShow.time = '';
-                        updateShowSelectionMessage();
+                        showSelectionMessage.textContent = 'Select a theater first.';
+                        loadSeatsBtn.disabled = true;
+                        loadSeatsBtn.classList.add('opacity-50');
                     }
                 });
-            } else {
-                showDebug('ERROR: showTheaterSelect not found for event listener');
             }
+
 
             // Date change handler
             if (showDateSelect) {
@@ -279,6 +303,9 @@ include 'includes/public-header.php';
 
                     if (selectedDate && selectedTheater) {
                         populateTimesForTheaterAndDate(selectedTheater, selectedDate);
+                        // Reset Load Seats button - need time selection too
+                        loadSeatsBtn.disabled = true;
+                        loadSeatsBtn.classList.add('opacity-50');
                     } else {
                         // Reset time selector
                         if (showTimeSelect) {
@@ -287,6 +314,8 @@ include 'includes/public-header.php';
                         }
                         selectedShow.date = '';
                         selectedShow.time = '';
+                        loadSeatsBtn.disabled = true;
+                        loadSeatsBtn.classList.add('opacity-50');
                         updateShowSelectionMessage();
                     }
                 });
@@ -298,7 +327,16 @@ include 'includes/public-header.php';
                     const selectedTime = this.value;
                     showDebug(`Time selected: ${selectedTime}`);
                     selectedShow.time = selectedTime;
-                    updateShowSelectionMessage();
+                    
+                    // Enable Load Seats button if all selections are made
+                    if (selectedShow.theater && selectedShow.date && selectedTime) {
+                        loadSeatsBtn.disabled = false;
+                        loadSeatsBtn.classList.remove('opacity-50');
+                        updateShowSelectionMessage();
+                    } else {
+                        loadSeatsBtn.disabled = true;
+                        loadSeatsBtn.classList.add('opacity-50');
+                    }
                 });
             }
         }
@@ -494,9 +532,9 @@ include 'includes/public-header.php';
         }
 
         function initBooking() {
-            console.log('initBooking called');
-            alert('initBooking called for movie ' + movieId);
+            console.log('initBooking called for movie ' + movieId);
             showDebug('initBooking started for movieId: ' + movieId);
+
             showDateSelect = document.getElementById('showDateSelect');
             showTimeSelect = document.getElementById('showTimeSelect');
             showTheaterSelect = document.getElementById('showTheaterSelect');
@@ -541,17 +579,28 @@ include 'includes/public-header.php';
                 updateShowSelectionMessage();
             }
 
-            loadSeatsBtn?.addEventListener('click', function() {
-                const date = showDateSelect?.value || '';
-                const time = showTimeSelect?.value || '';
-                const theater = showTheaterSelect?.value || '';
-
-                selectedShow.date = date;
-                selectedShow.time = time;
-                selectedShow.theater = theater;
-
-                loadSelectedShow();
+            loadSeatsBtn?.addEventListener('click', async function() {
+                const theater = showTheaterSelect?.value;
+                const date = showDateSelect?.value;
+                const time = showTimeSelect?.value;
+                
+                if (!theater || !date || !time) {
+                    showError('Please select theater, date AND time first');
+                    return;
+                }
+                
+                showDebug(`Loading seats for ${theater} on ${date} ${time}`);
+                loadSeatsBtn.disabled = true;
+                loadSeatsBtn.textContent = 'Loading seats...';
+                
+                // **FIX 2: Pass date/time to API**
+                await fetchOccupiedSeats();
+                
+                loadSeatsBtn.disabled = false;
+                loadSeatsBtn.textContent = 'Refresh Seats';
+                showSelectionMessage.textContent = `Seats loaded for ${theater} (${date} ${time}). Select your seats!`;
             });
+
         }
 
         function showDebug(message) {
@@ -566,16 +615,17 @@ include 'includes/public-header.php';
         const MAX_SEATS = 10;
         let occupiedSeats = [];
 
-        // Fetch occupied seats from server
+        // Fetch occupied seats from server **FIXED with date/time**
         async function fetchOccupiedSeats() {
             try {
-                if (!movieId || !selectedShow.theater) {
-                    showDebug('Missing movieId or theater, cannot fetch seats');
+                if (!movieId || !selectedShow.theater || !selectedShow.date || !selectedShow.time) {
+                    showDebug('Missing show details, cannot fetch accurate seats');
                     return;
                 }
 
-                const response = await fetch('get-seats.php?movie_id=' + movieId + '&theater=' + encodeURIComponent(selectedShow.theater));
+                const response = await fetch(`get-seats.php?movie_id=${movieId}&theater=${encodeURIComponent(selectedShow.theater)}&date=${encodeURIComponent(selectedShow.date)}&time=${encodeURIComponent(selectedShow.time)}`);
                 const data = await response.json();
+
                 
                 if (data.success && data.occupied_seats) {
                     occupiedSeats = data.occupied_seats;
@@ -613,18 +663,21 @@ include 'includes/public-header.php';
             let html = '';
             
             for (let row of rows) {
-                html += `<div class="flex items-center justify-center mb-3 sm:mb-4 gap-0.5 sm:gap-1">\n`;
-                html += `<span class="w-9 sm:w-10 md:w-12 text-right font-bold text-sm sm:text-base md:text-lg mr-1 sm:mr-2 md:mr-4 whitespace-nowrap flex-shrink-0">${row}</span>\n`;
+                html += `<div class="flex items-center justify-center mb-3 sm:mb-4 gap-0.5 sm:gap-1">`;
+                html += `<span class="w-9 sm:w-10 md:w-12 text-right font-bold text-sm sm:text-base md:text-lg mr-1 sm:mr-2 md:mr-4 whitespace-nowrap flex-shrink-0">${row}</span>`;
                 
                 for (let seat = 1; seat <= config.totalSeats; seat++) {
                     const seatId = `${row}${seat}`;
                     const isOccupied = occupiedSeats.includes(seatId);
                     const status = isOccupied ? 'occupied' : 'available';
+                    const seatClasses = status === 'occupied' 
+                        ? 'bg-red-500 border-red-600 text-white cursor-not-allowed'
+                        : 'bg-green-500 border-green-600 text-white shadow-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation';
                     
-                    html += `<div class="seat w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 min-w-[2.5rem] min-h-[2.5rem] rounded-lg border-4 flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation font-bold text-xs sm:text-sm shadow-md ${status === 'occupied' ? 'bg-red-500 border-red-600 text-white cursor-not-allowed' : 'bg-green-500 border-green-600 text-white shadow-lg'} seat-${seatId}" data-seat="${seatId}" data-status="${status}" aria-label="Seat ${seatId} ${status}">${isOccupied ? 'X' : seat}</div>\n`;
+                    html += `<div class="seat ${status} w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 min-w-[2.5rem] min-h-[2.5rem] rounded-lg border-4 flex items-center justify-center font-bold text-xs sm:text-sm shadow-md ${seatClasses} seat-${seatId}" data-seat="${seatId}" data-status="${status}" aria-label="Seat ${seatId} ${status}">${isOccupied ? 'X' : seat}</div>`;
                 }
                 
-                html += `</div>\n`;
+                html += `</div>`;
             }
             
             seatMap.innerHTML = html;
@@ -632,16 +685,16 @@ include 'includes/public-header.php';
             
             // Add event listeners
             document.querySelectorAll('.seat.available').forEach(seat => {
-                seat.addEventListener('click', handleSeatClick, { passive: true });
+                seat.addEventListener('click', handleSeatClick);
                 seat.setAttribute('tabindex', '0');
                 seat.setAttribute('role', 'button');
+                seat.style.cursor = 'pointer';
             });
             
             updateSelection();
         }
 
         function handleSeatClick(e) {
-            e.preventDefault();
             const seat = e.currentTarget;
             const seatId = seat.dataset.seat;
             
@@ -699,7 +752,7 @@ include 'includes/public-header.php';
             };
         }
 
-        // Verify seats are still available before booking
+        // Verify seats are still available before booking **FIXED**
         async function verifySeatsAvailable(seats) {
             if (!seats || seats.length === 0) {
                 showError('No seats selected');
@@ -710,6 +763,8 @@ include 'includes/public-header.php';
                 const formData = new FormData();
                 formData.append('movie_id', movieId);
                 formData.append('theater', selectedShow.theater);
+                formData.append('date', selectedShow.date);
+                formData.append('time', selectedShow.time);
                 formData.append('seats', seats.join(','));
 
                 const response = await fetch('verify-seats.php', {

@@ -1,82 +1,68 @@
 <?php
-// API endpoint to verify seats are still available before booking
+// verify-seats.php - API to verify specific seats available for showtime
 require_once 'includes/config.php';
-require_once 'includes/auth.php';
 
 header('Content-Type: application/json');
 
-// Only allow logged-in users
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Not authenticated']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'error' => 'POST required']);
     exit;
 }
 
-$movie_id = isset($_POST['movie_id']) ? (int)$_POST['movie_id'] : 0;
-$theater = isset($_POST['theater']) ? trim($_POST['theater']) : '';
-$seats = isset($_POST['seats']) ? $_POST['seats'] : [];
+$movie_id = (int)$_POST['movie_id'] ?? 0;
+$theater = trim($_POST['theater'] ?? '');
+$date = trim($_POST['date'] ?? '');
+$time = trim($_POST['time'] ?? '');
+$seats_str = trim($_POST['seats'] ?? '');
 
-if (!is_array($seats)) {
-    $seats = array_filter(array_map('trim', explode(',', $seats)));
-}
-
-if ($movie_id <= 0 || empty($theater) || empty($seats)) {
-    echo json_encode(['success' => false, 'error' => 'Invalid parameters']);
+if ($movie_id <= 0 || empty($theater) || empty($date) || empty($time) || empty($seats_str)) {
+    echo json_encode(['success' => false, 'error' => 'Missing parameters']);
     exit;
 }
 
 try {
-    // Check if seats are available (not occupied)
-    $placeholders = implode(',', array_fill(0, count($seats), '?'));
-    $query = "
-        SELECT seat_number, occupied 
-        FROM seats 
-        WHERE movie_id = ? AND theater = ? AND seat_number IN ($placeholders)
-    ";
+    $seats_array = array_filter(array_map('trim', explode(',', $seats_str)));
     
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        throw new Exception('Database error: ' . $conn->error);
-    }
-    
-    // Build parameter types and values
-    $types = 'is' . str_repeat('s', count($seats));
-    $params = array_merge([$movie_id, $theater], $seats);
-    $stmt->bind_param($types, ...$params);
+    // 1. Verify showtime exists
+    $stmt = $conn->prepare('SELECT id FROM showtimes WHERE movie_id = ? AND theater = ? AND date = ? AND time = ?');
+    $stmt->bind_param('isss', $movie_id, $theater, $date, $time);
     $stmt->execute();
-    $result = $stmt->get_result();
-    
-    $seat_status = [];
-    $unavailable_seats = [];
-    
-    while ($row = $result->fetch_assoc()) {
-        $seat_status[$row['seat_number']] = $row['occupied'];
-        if ($row['occupied'] == 1) {
-            $unavailable_seats[] = $row['seat_number'];
-        }
+    if (!$stmt->get_result()->num_rows) {
+        echo json_encode(['success' => false, 'message' => 'Showtime not found']);
+        exit;
     }
-    
     $stmt->close();
     
-    if (!empty($unavailable_seats)) {
+    // 2. Check all seats available
+    $unavailable = [];
+    $stmt = $conn->prepare('
+        SELECT seat_number FROM seats 
+        WHERE movie_id = ? AND theater = ? AND date = ? AND time = ? AND occupied = 1
+    ');
+    $stmt->bind_param('isss', $movie_id, $theater, $date, $time);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        if (in_array($row['seat_number'], $seats_array)) {
+            $unavailable[] = $row['seat_number'];
+        }
+    }
+    $stmt->close();
+    
+    if (!empty($unavailable)) {
         echo json_encode([
-            'success' => false,
-            'available' => false,
-            'unavailable_seats' => $unavailable_seats,
-            'message' => 'Some seats are no longer available: ' . implode(', ', $unavailable_seats)
+            'success' => false, 
+            'message' => 'Seats unavailable: ' . implode(', ', $unavailable),
+            'unavailable' => $unavailable
         ]);
     } else {
-        echo json_encode([
-            'success' => true,
-            'available' => true,
-            'message' => 'All seats are available'
-        ]);
+        echo json_encode(['success' => true, 'available' => true, 'message' => 'All seats available']);
     }
     
 } catch (Exception $e) {
-    http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
 
 $conn->close();
 ?>
+
